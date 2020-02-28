@@ -1,9 +1,9 @@
 /*-----------------------------------------------------------------------------
-Library UI GTK (v1.0.0)
+Library CSrequest (v1.0.0)
 
-This is a C-language written library designed to facilitate the creation of
-the graphical environment with the GTK tool using the kit's GtkBuilder function
-(see https://developer.gnome.org/gtk3/stable/GtkBuilder.html).
+This is a library written in C language designed to simplify requests to the
+SQLite database.
+(see https://www.sqlite.org/index.html)
 
 MIT License
 
@@ -28,23 +28,92 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 Compilation with gcc:
-gcc `pkg-config --cflags gtk+-3.0` -c libuigtk.c `pkg-config --libs gtk+-3.0`;
+FIXME gcc `pkg-config --cflags gtk+-3.0` -c libuigtk.c `pkg-config --libs gtk+-3.0`;
 
-The library is hosted at https://github.com/wdonadelli/libuigtk and the manual
-at https://wdonadelli.github.io/libuigtk/.
+The library is hosted at https://github.com/wdonadelli/libcsrequest and the manual
+at https://wdonadelli.github.io/libcsrequest/.
 
 Willian Donadelli <wdonadelli@gmail.com>
 -----------------------------------------------------------------------------*/
 
-#ifndef LIBRARY_UI_GTK_H
+#ifndef LIBRARY_CS_REQUEST_H
 
-	#define LIBRARY_UI_GTK_H
+	#define LIBRARY_CS_REQUEST_H
 
 /*-----------------------------------------------------------------------------
-	A presente biblioteca exige a biblioteca GTK
+	A presente biblioteca exige a biblioteca sqlite3
 -----------------------------------------------------------------------------*/
-	#include <gtk/gtk.h>
+	#include <sqlite3.h>
+
+
+/*-----------------------------------------------------------------------------
+	Estrutura do retorno de pesquisas
+	https://www.sqlite.org/limits.html
+		SQLITE_MAX_LENGTH 1000000000
+		SQLITE_MAX_COLUMN 2000
+		SQLITE_MAX_SQL_LENGTH 1000000
+		18446744073709551616
+-----------------------------------------------------------------------------*/
+	typedef struct
+	{
+		char col[800];
+		char val[800];
+	} csrTypeData;
+
+/*-----------------------------------------------------------------------------
+	Estrutura do objeto
+-----------------------------------------------------------------------------*/
+	typedef struct
+	{
+		int (*sql)(char);
+		int (*insert)(void);
+		int (*update)(char);
+		int (*delete)(char);
+		int (*view)(char);
+		char file[1000];
+		unsigned int error: 1;
+		char msg[1000];
+	} csrStruct;
 	
+/*-----------------------------------------------------------------------------
+	Os protótipos abaixo não devem ser utilizadas para manipulação da
+	biblioteca, sua utilidade se destina a criação do métodos secundários da
+	ferramenta principal.
+	__csr_sql__ ()    executa uma requisição a partir de uma estrutura SQL
+	__csr_insert__ () executa uma inserção a partir de uma lista de estrutura
+	__csr_update__ () executa uma alteração a partir de uma lista de estrutura
+	__csr_delete__ () executa uma deleção a partir de uma lista de estrutura
+	__csr_view__ ()   executa uma pesquisa a partir de uma lista de estrutura
+	Todos os protótipos retornam 1 (sucesso) ou 0 (erro)
+-----------------------------------------------------------------------------*/
+	int __csr_sql__ (char *query);
+	int __csr_insert__ (void);
+	int __csr_update__ (char *col, char *val);
+	int __csr_delete__ (char *col, char *val);
+	int __csr_view__ (char *col, char *val);
+
+
+
+/*
+new_CSrequest(db, "banco.db");
+db.add("col1", "value1", 0);
+db.add("col2", "value2", 0);
+db.add("col3", "value3", 0);
+db.add("col4", "value4", 0);
+db.add("col5", "value5", 1);
+db.add("col6", "value6", 0);
+db.insert();
+db.error();
+db.clear();
+
+
+
+
+
+
+
+*/
+
 /*-----------------------------------------------------------------------------
 	uigtk_init() inicia a inteface GTK a partir de um arquivo.ui (builde xml)
 	Argumentos:
