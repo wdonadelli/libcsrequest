@@ -41,9 +41,10 @@ Willian Donadelli <wdonadelli@gmail.com>
 	#define LIBRARY_CS_REQUEST_H
 
 /*-----------------------------------------------------------------------------
-	A presente biblioteca exige a biblioteca sqlite3
+	A presente biblioteca exige a biblioteca sqlite3 e string
 -----------------------------------------------------------------------------*/
 	#include <sqlite3.h>
+	#include <string.h>
 
 
 /*-----------------------------------------------------------------------------
@@ -56,24 +57,30 @@ Willian Donadelli <wdonadelli@gmail.com>
 -----------------------------------------------------------------------------*/
 	typedef struct
 	{
-		char col[800];
-		char val[800];
-	} csrTypeData;
+		char *col;
+		char *val;
+	} csrData;
 
 /*-----------------------------------------------------------------------------
 	Estrutura do objeto
 -----------------------------------------------------------------------------*/
 	typedef struct
 	{
-		int (*sql)(char);
-		int (*insert)(void);
-		int (*update)(char);
-		int (*delete)(char);
-		int (*view)(char);
-		char file[1000];
+		/*-- Métodos --*/
+		int (*sql)(*csrObject, char);
+		int (*insert)(*csrObject);
+		int (*update)(*csrObject, *char, *char);
+		int (*delete)(*csrObject, *char, *char);
+		int (*view)(*csrObject, *char, *char);
+		int (*add)(*csrObject, *char, *char);
+		int (*insert)(*csrObject);
+		/*-- Atributos --*/
+		char *file;
 		unsigned int error: 1;
-		char msg[1000];
-	} csrStruct;
+		char *msg;
+		csrData data[][];
+		csrData query[][];
+	} csrObject;
 	
 /*-----------------------------------------------------------------------------
 	Os protótipos abaixo não devem ser utilizadas para manipulação da
@@ -84,13 +91,17 @@ Willian Donadelli <wdonadelli@gmail.com>
 	__csr_update__ () executa uma alteração a partir de uma lista de estrutura
 	__csr_delete__ () executa uma deleção a partir de uma lista de estrutura
 	__csr_view__ ()   executa uma pesquisa a partir de uma lista de estrutura
+	__csr_add__ ()    adiciona dados para execução dos métodos acima (-sql)
+	__csr_clear__ ()  limpa os dados adicionados pelo método add
 	Todos os protótipos retornam 1 (sucesso) ou 0 (erro)
 -----------------------------------------------------------------------------*/
-	int __csr_sql__ (char *query);
-	int __csr_insert__ (void);
-	int __csr_update__ (char *col, char *val);
-	int __csr_delete__ (char *col, char *val);
-	int __csr_view__ (char *col, char *val);
+	int __csr_sql__ (*csrObject self, char *query);
+	int __csr_insert__ (*csrObject self);
+	int __csr_update__ (*csrObject self, char *col, char *val);
+	int __csr_delete__ (*csrObject self, char *col, char *val);
+	int __csr_view__ (*csrObject self, char *col, char *val);
+	int __csr_add__ (*csrObject self, char *col, char *val);
+	int __csr_clear__ (*csrObject self);
 
 
 
