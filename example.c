@@ -1,24 +1,13 @@
-#include "libuigtk.h"
-
-static void hello(GtkWidget *widget, gpointer data) {
-	uigtk_dialog(0, "Hello", "Hi!");
-}
-
-static void bye(GtkWidget *widget, gpointer data) {
-	int result = uigtk_dialog(3, "Where are you going?", "Do you really want to say goodbye?");
-	if (result == 1) {
-		uigtk_dialog(0, NULL, "Bye, bye...");
-		gtk_main_quit();
-	}
-}
+#include "libcsrequest.h"
 
 int main(int argc, char *argv[]) {
 
-	uigtk_init("example.ui");
+	new_CSrequest(db, "example.db");
+	printf("file: %s\n\n", db.file);
 
-	uigtk_handler(gtk_main_quit);
-	uigtk_handler(hello);
-	uigtk_handler(bye);
+	db.add("col 1", "val 1");
+	db.add("col 2", "val 2");
 
-	uigtk_main();
+	//if (db.add(NULL, NULL)) printf("erro\n"); else printf("sem erro\n");
+
 }

@@ -27,6 +27,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+Ubuntu package
+	libsqlite3-dev
+
 Compilation with gcc:
 FIXME gcc `pkg-config --cflags gtk+-3.0` -c libuigtk.c `pkg-config --libs gtk+-3.0`;
 
@@ -41,11 +44,12 @@ Willian Donadelli <wdonadelli@gmail.com>
 	#define LIBRARY_CS_REQUEST_H
 
 /*-----------------------------------------------------------------------------
-	A presente biblioteca exige a biblioteca sqlite3 e string
+	A presente biblioteca exige a biblioteca sqlite3, stdio, stdlib e string
 -----------------------------------------------------------------------------*/
 	#include <sqlite3.h>
+	#include <stdio.h>
+	#include <stdlib.h>
 	#include <string.h>
-
 
 /*-----------------------------------------------------------------------------
 	Estrutura do retorno de pesquisas
@@ -67,134 +71,132 @@ Willian Donadelli <wdonadelli@gmail.com>
 	typedef struct
 	{
 		/*-- Métodos --*/
-		int (*sql)(*csrObject, char);
-		int (*insert)(*csrObject);
-		int (*update)(*csrObject, *char, *char);
-		int (*delete)(*csrObject, *char, *char);
-		int (*view)(*csrObject, *char, *char);
-		int (*add)(*csrObject, *char, *char);
-		int (*insert)(*csrObject);
+		/*
+		int (*sql)(csrObject, char);
+		int (*insert)(csrObject);
+		int (*update)(csrObject, char, char);
+		int (*delete)(csrObject, char, char);
+		int (*view)(csrObject, char, char);
+		int (*add)(csrObject, char, char);
+		int (*clear)(csrObject);
+		*/
+		int (*sql)();
+		int (*insert)();
+		int (*update)();
+		int (*delete)();
+		int (*view)();
+		int (*add)();
+		int (*clear)();
+		
 		/*-- Atributos --*/
-		char *file;
-		unsigned int error: 1;
-		char *msg;
-		csrData data[][];
-		csrData query[][];
+		char *file;            /* nome do arquivo */
+		unsigned int error: 1; /* informa se houve erro na última operação */
+		char *msg;             /* informa mensagem de erro da última operação */
+		csrData *data;         /* lista de inclusões */
+		//csrData query[][]; /* [linhas][colunas] */
 	} csrObject;
 	
 /*-----------------------------------------------------------------------------
+	Protótipos
+
 	Os protótipos abaixo não devem ser utilizadas para manipulação da
 	biblioteca, sua utilidade se destina a criação do métodos secundários da
 	ferramenta principal.
-	__csr_sql__ ()    executa uma requisição a partir de uma estrutura SQL
-	__csr_insert__ () executa uma inserção a partir de uma lista de estrutura
-	__csr_update__ () executa uma alteração a partir de uma lista de estrutura
-	__csr_delete__ () executa uma deleção a partir de uma lista de estrutura
-	__csr_view__ ()   executa uma pesquisa a partir de uma lista de estrutura
-	__csr_add__ ()    adiciona dados para execução dos métodos acima (-sql)
-	__csr_clear__ ()  limpa os dados adicionados pelo método add
 	Todos os protótipos retornam 1 (sucesso) ou 0 (erro)
 -----------------------------------------------------------------------------*/
-	int __csr_sql__ (*csrObject self, char *query);
-	int __csr_insert__ (*csrObject self);
-	int __csr_update__ (*csrObject self, char *col, char *val);
-	int __csr_delete__ (*csrObject self, char *col, char *val);
-	int __csr_view__ (*csrObject self, char *col, char *val);
-	int __csr_add__ (*csrObject self, char *col, char *val);
-	int __csr_clear__ (*csrObject self);
-
-
-
-/*
-new_CSrequest(db, "banco.db");
-db.add("col1", "value1", 0);
-db.add("col2", "value2", 0);
-db.add("col3", "value3", 0);
-db.add("col4", "value4", 0);
-db.add("col5", "value5", 1);
-db.add("col6", "value6", 0);
-db.insert();
-db.error();
-db.clear();
-
-
-
-
-
-
-
-*/
 
 /*-----------------------------------------------------------------------------
-	uigtk_init() inicia a inteface GTK a partir de um arquivo.ui (builde xml)
-	Argumentos:
-		file - é o nome do arquivo com a interface xml (.ui)
-	Saída:
-		Força o encerramento da aplicação se algum erro for encontrado
+	__csr_sql__ () executa uma requisição a partir de uma estrutura SQL
 -----------------------------------------------------------------------------*/
-	void uigtk_init (char *file);
+	int __csr_sql__ (csrObject *self, char *query);
+
+	#define __CSR_SQL__(SELF) \
+		int __csr_sql__##SELF (char *query) { \
+			return __csr_sql__(&SELF, query); \
+		} \
+		SELF.sql = __csr_sql__##SELF;
 
 /*-----------------------------------------------------------------------------
-	uigtk_callback() conecta os sinais definidos diretamente na interface
-	Argumentos:
-		name    - nome da função a ser disparada quando o evento ocorrer
-		handler - função a ser disparada quando o evento ocorrer
-	Saída:
-		Força o encerramento da aplicação se algum erro for encontrado
-	Sugere-se o uso da macro uigtk_handler()
+	__csr_insert__ () executa uma inserção a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	void uigtk_callback (char *name, void (*handler)());
+	int __csr_insert__ (csrObject *self);
 
-	#define uigtk_handler(handler) uigtk_callback(#handler, handler)
+	#define __CSR_INSERT__(SELF) \
+		int __csr_insert__##SELF () { \
+			return __csr_insert__(&SELF); \
+		} \
+		SELF.insert = __csr_insert__##SELF;
 
 /*-----------------------------------------------------------------------------
-	uigtk_main() inicia o looping principal do GTK (última ação)
-	Saída:
-		Força o encerramento da aplicação se algum erro for encontrado
+	__csr_update__ () executa uma alteração a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	void uigtk_main (void);
+	int __csr_update__ (csrObject *self, char *column, char *value);
+
+	#define __CSR_UPDATE__(SELF) \
+		int __csr_update__##SELF (char *column, char *value) { \
+			return __csr_update__(&SELF, column, value); \
+		} \
+		SELF.update = __csr_update__##SELF;
 
 /*-----------------------------------------------------------------------------
-	uigtk_builder() retorna o ponteiro do builder para o argumento
-	Argumentos:
-		builder - variável a receber o ponteiro do builder
-	Saída:
-		Força o encerramento da aplicação se algum erro for encontrado
-	Sugere-se o uso da macro uigtk_set_builder() se for associar a uma variável
-		var é o nome da variável sem necessidade de definição de tipo
+	__csr_delete__ () executa uma deleção a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	GtkBuilder *uigtk_builder (void);
-	
-	#define uigtk_set_builder(var) GtkBuilder *var = uigtk_builder ()
+	int __csr_delete__ (csrObject *self, char *column, char *value);
+
+	#define __CSR_DELETE__(SELF) \
+		int __csr_delete__##SELF (char *column, char *value) { \
+			return __csr_delete__(&SELF, column, value); \
+		} \
+		SELF.delete = __csr_delete__##SELF;
 
 /*-----------------------------------------------------------------------------
-	uigtk_object() obtém o objeto da interface a partir de seu id
-	Retornos:
-		NULL    - se o objeto não for encontrado
-		GObject - se o objeto for encontrado
-	Argumentos:
-		id - identificador do objeto
-	Sugere-se o uso da macro uigtk_set_object() se for associar a uma variável
-		var é o nome da variável sem necessidade de definição de tipo
+	__csr_view__ () executa uma pesquisa a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	GObject *uigtk_object (char *id);
+	int __csr_view__ (csrObject *self, char *column, char *value);
 
-	#define uigtk_set_object(var, id) GObject *var = uigtk_object (id)
+	#define __CSR_VIEW__(SELF) \
+		int __csr_view__##SELF (char *column, char *value) { \
+			return __csr_view__(&SELF, column, value); \
+		} \
+		SELF.view = __csr_view__##SELF;
 
 /*-----------------------------------------------------------------------------
-	uigtk_dialog() exibe uma caixa de mensagem
-	Retornos:
-		-1 - se "não" foi clicado
-		 0 - se a caixa foi fechada
-		 1 - se "sim" ou "ok" forem clicados
-	Argumentos:
-		type - 
-			0 - para caixa de informação (OK)
-			1 - para caixa de alerta (OK)
-			2 - para caixa de erro (OK)
-			3 - para caixa de questão (SIM/NÃO)
-			4 - para caixa genérica (CANCELAR)
-		text - texto da mensagem
+	__csr_add__ () adiciona dados para execução dos métodos acima (-sql)
 -----------------------------------------------------------------------------*/
-	int uigtk_dialog (int type, char *title, char *text);
+	int __csr_add__ (csrObject *self, char *column, char *value);
+
+	#define __CSR_ADD__(SELF) \
+		int __csr_add__##SELF (char *column, char *value) { \
+			return __csr_add__(&SELF, column, value); \
+		} \
+		SELF.add = __csr_add__##SELF;
+
+/*-----------------------------------------------------------------------------
+	__csr_clear__ () limpa os dados adicionados pelo método add
+-----------------------------------------------------------------------------*/
+	int __csr_clear__ (csrObject *self);
+
+	#define __CSR_CLEAR__(SELF) \
+		int __csr_clear__##SELF () { \
+			return __csr_clear__(&SELF); \
+		} \
+		SELF.clear = __csr_clear__##SELF;
+
+/*-----------------------------------------------------------------------------
+	new_CSrequest () construtor da estrutura
+-----------------------------------------------------------------------------*/
+	#define new_CSrequest(OBJECT, FILE) \
+	\
+		csrObject OBJECT; \
+		OBJECT.file = malloc ((strlen(FILE) + 1) * sizeof (char)); \
+		strcpy(OBJECT.file, FILE); \
+		OBJECT.error = 0; \
+		__CSR_SQL__(OBJECT); \
+		__CSR_INSERT__(OBJECT); \
+		__CSR_UPDATE__(OBJECT); \
+		__CSR_DELETE__(OBJECT); \
+		__CSR_VIEW__(OBJECT); \
+		__CSR_ADD__(OBJECT); \
+		__CSR_CLEAR__(OBJECT);
+
 #endif
