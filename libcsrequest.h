@@ -59,10 +59,12 @@ Willian Donadelli <wdonadelli@gmail.com>
 		SQLITE_MAX_SQL_LENGTH 1000000
 		18446744073709551616
 -----------------------------------------------------------------------------*/
-	typedef struct
+	typedef struct csrData
 	{
 		char *col;
 		char *val;
+		unsigned int where: 1;
+		struct csrData *next;
 	} csrData;
 
 /*-----------------------------------------------------------------------------
@@ -93,7 +95,7 @@ Willian Donadelli <wdonadelli@gmail.com>
 		unsigned int error: 1; /* informa se houve erro na última operação */
 		char *msg;             /* informa mensagem de erro da última operação */
 		csrData *data;         /* lista de inclusões */
-		//csrData query[][]; /* [linhas][colunas] */
+		//csrData **query; /* [linhas][colunas] */
 	} csrObject;
 	
 /*-----------------------------------------------------------------------------
@@ -119,55 +121,55 @@ Willian Donadelli <wdonadelli@gmail.com>
 /*-----------------------------------------------------------------------------
 	__csr_insert__ () executa uma inserção a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	int __csr_insert__ (csrObject *self);
+	int __csr_insert__ (csrObject *self, char *table);
 
 	#define __CSR_INSERT__(SELF) \
-		int __csr_insert__##SELF () { \
-			return __csr_insert__(&SELF); \
+		int __csr_insert__##SELF (char *table) { \
+			return __csr_insert__(&SELF, table); \
 		} \
 		SELF.insert = __csr_insert__##SELF;
 
 /*-----------------------------------------------------------------------------
 	__csr_update__ () executa uma alteração a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	int __csr_update__ (csrObject *self, char *column, char *value);
+	int __csr_update__ (csrObject *self, char *table);
 
 	#define __CSR_UPDATE__(SELF) \
-		int __csr_update__##SELF (char *column, char *value) { \
-			return __csr_update__(&SELF, column, value); \
+		int __csr_update__##SELF (char *table) { \
+			return __csr_update__(&SELF, table); \
 		} \
 		SELF.update = __csr_update__##SELF;
 
 /*-----------------------------------------------------------------------------
 	__csr_delete__ () executa uma deleção a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	int __csr_delete__ (csrObject *self, char *column, char *value);
+	int __csr_delete__ (csrObject *self, char *table);
 
 	#define __CSR_DELETE__(SELF) \
-		int __csr_delete__##SELF (char *column, char *value) { \
-			return __csr_delete__(&SELF, column, value); \
+		int __csr_delete__##SELF (char *table) { \
+			return __csr_delete__(&SELF, table); \
 		} \
 		SELF.delete = __csr_delete__##SELF;
 
 /*-----------------------------------------------------------------------------
 	__csr_view__ () executa uma pesquisa a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	int __csr_view__ (csrObject *self, char *column, char *value);
+	int __csr_view__ (csrObject *self, char *table);
 
 	#define __CSR_VIEW__(SELF) \
-		int __csr_view__##SELF (char *column, char *value) { \
-			return __csr_view__(&SELF, column, value); \
+		int __csr_view__##SELF (char *table) { \
+			return __csr_view__(&SELF, table); \
 		} \
 		SELF.view = __csr_view__##SELF;
 
 /*-----------------------------------------------------------------------------
 	__csr_add__ () adiciona dados para execução dos métodos acima (-sql)
 -----------------------------------------------------------------------------*/
-	int __csr_add__ (csrObject *self, char *column, char *value);
+	int __csr_add__ (csrObject *self, char *column, char *value, int where);
 
 	#define __CSR_ADD__(SELF) \
-		int __csr_add__##SELF (char *column, char *value) { \
-			return __csr_add__(&SELF, column, value); \
+		int __csr_add__##SELF (char *column, char *value, int where) { \
+			return __csr_add__(&SELF, column, value, where); \
 		} \
 		SELF.add = __csr_add__##SELF;
 
@@ -191,6 +193,7 @@ Willian Donadelli <wdonadelli@gmail.com>
 		OBJECT.file = malloc ((strlen(FILE) + 1) * sizeof (char)); \
 		strcpy(OBJECT.file, FILE); \
 		OBJECT.error = 0; \
+		OBJECT.data = NULL; \
 		__CSR_SQL__(OBJECT); \
 		__CSR_INSERT__(OBJECT); \
 		__CSR_UPDATE__(OBJECT); \

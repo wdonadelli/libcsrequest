@@ -16,108 +16,80 @@ int __csr_sql__ (csrObject *self, char *query)
 
 /*...........................................................................*/
 
-int __csr_insert__ (csrObject *self)
+int __csr_insert__ (csrObject *self, char *table)
 {
 	return 1;
 }
 
 /*...........................................................................*/
 
-int __csr_update__ (csrObject *self, char *column, char *value)
+int __csr_update__ (csrObject *self, char *table)
 {
 	return 1;
 }
 
 /*...........................................................................*/
 
-int __csr_delete__ (csrObject *self, char *column, char *value)
+int __csr_delete__ (csrObject *self, char *table)
 {
 	return 1;
 }
 
 /*...........................................................................*/
 
-int __csr_view__ (csrObject *self, char *column, char *value)
+int __csr_view__ (csrObject *self, char *table)
 {
 	return 1;
 }
 
 /*...........................................................................*/
 
-int __csr_add__ (csrObject *self, char *column, char *value)
+int __csr_add__ (csrObject *self, char *column, char *value, int where)
 {
 	/* definindo variáveis locais */
-	csrData data;
-	int count;
+	csrData *data;
 
 	/* verificar se a coluna foi informada */
-	if (column == NULL) {
+	if (column == NULL || strlen(column) == 0) {
 		CSR_WARN("The \"column\" argument is mandatory.", "add(char *column, char *value)");
 		return 0;
 	}
 
-	/* definindo coluna */
-	data.col = malloc ((strlen(column) + 1) * sizeof (char));
+	/* alocando memória */
+	data = malloc (sizeof(csrData));
+	if (!data) {
+		CSR_WARN("Insufficient space in memory.", "add(char *column, char *value)");
+		return 0;
+	}
 
-	if (!data.col) {
+	/* data->where */
+	data->where = where == 1 ? 1 : 0;
+
+	/* data->col */
+	data->col = malloc ((strlen(column) + 1) * sizeof (char));
+	if (!data->col) {
 		CSR_WARN("Insufficient space in memory for \"column\".", "add(char *column, char *value)");
 		return 0;
 	}
+	strcpy(data->col, column);
 
-	strcpy(data.col, column);
-	
-	/* definindo valor */
-	data.val = value == NULL ? malloc (5 * sizeof(char)) : malloc ((strlen(value) + 3) * sizeof(char));
-
-	if (!data.val) {
+	/* data->val */
+	data->val = malloc ((value == NULL ? 5 : (strlen(column) + 3)) * sizeof (char));
+	if (!data->val) {
 		CSR_WARN("Insufficient space in memory for \"value\".", "add(char *column, char *value)");
 		return 0;
 	}
-	
 	if (value == NULL) {
-		strcpy(data.val, "NULL");
+		strcpy(data->val, "NULL");
 	} else {
-		strcpy(data.val, "'");
-		strcat(data.val, value);
-		strcat(data.val, "'");
+		strcpy(data->val, "'");
+		strcat(data->val, value);
+		strcat(data->val, "'");
 	}
 
-	/* definindo o tamanho do array self->data */
-	printf("csrData: %li\n", sizeof(csrData));
-	printf("self->data 1: %li\n", sizeof(self->data[0]));
-
-	count = sizeof(self->data) / sizeof(csrData);
-	printf("count: %i\n", count);
-
-
-	self->data[count] = data;
-
-//	self->data = count == 0 ? malloc (sizeof(data)) : malloc (sizeof(self->data) + sizeof(data));
-//	self->data[0] = data;
-
-//	if (!self->data) {
-//		CSR_WARN("Insufficient space in memory to add more data.", "add(char *column, char *value)");
-//		return 0;
-//	}
-
-	printf("self->data 2: %li\n", sizeof(self->data));
-	
-	printf("self->data[x].val: %s\n", self->data[count].val);
-
-/*
-	while (self->data[i] != NULL) {
-		printf("idiota: %i\n", i);
-		if (i == 10) break;
-		i = i + 1;
-	}
-*/
-	
-	/* adicionando ao array */
-
-
-	printf("---------------------\n");
-
-
+	/* data->next */
+	data->next = self->data;
+	self->data = data;
 
 	return 1;
 }
@@ -126,5 +98,23 @@ int __csr_add__ (csrObject *self, char *column, char *value)
 
 int __csr_clear__ (csrObject *self)
 {
+	/* definindo variáveis locais */
+	csrData *data, *old;
+	data = self->data;
+
+	/* looping para liberar as memórias alocadas */
+	while (data != NULL) {
+		printf("col: %s\nval: %s\nwhere: %d\n\n", data->col, data->val, data->where);
+		free(data->col);
+		free(data->val);
+		data->where = 0;
+		old  = data;
+		data = data->next;
+		free(old);
+	}
+
+	/* zerando self->data */
+	self->data = NULL;
+
 	return 1;
 }
