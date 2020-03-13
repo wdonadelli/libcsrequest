@@ -7,20 +7,70 @@
 #define CSR_WARN(msg, name) printf(CSR_MSG, 33, "WARN", __LINE__, name, msg)
 #define CSR_ERROR(msg, name) printferr(CSR_MSG, 31, "ERROR", __LINE__, name, msg)
 
-#define CSR_INSERT(TAB, COL, VAL) "INSERT INTO TAB ( COL ) VALUES ( VAL );"
+/*---------------------------------------------------------------------------*/
+
+#define CSR_INSERT "INSERT INTO t () VALUES ();"
 
 #define CSR_INSERT_ATT(STR, ITEM) \
 	STR = realloc (STR, ((strlen(STR) + strlen(ITEM) + 3) * sizeof(char))); \
 	if (!STR) { \
-		CSR_WARN("Insufficient space in memory.", "add(char *column, char *value)"); \
+		CSR_WARN("Insufficient space in memory.", "insert(char *table)"); \
 		return 0; \
 	} \
-	strcat(STR, ", "); \
+	strcat(STR, (strlen(STR) > 0 ? ", " : "")); \
 	strcat(STR, ITEM);
+
+/*---------------------------------------------------------------------------*/
+
+#define CSR_UPDATE "UPDATE t SET s WHERE ;"
+
+#define CSR_UPDATE_ATT(STR, COL, VAL) \
+	STR = realloc (STR, ((strlen(STR) + strlen(COL) + strlen(VAL) + 4) * sizeof(char))); \
+	if (!STR) { \
+		CSR_WARN("Insufficient space in memory.", "update(char *table)"); \
+		return 0; \
+	} \
+	strcat(STR, (strlen(STR) > 0 ? ", " : "")); \
+	strcat(STR, COL); \
+	strcat(STR, "="); \
+	strcat(STR, VAL);
+
+/*---------------------------------------------------------------------------*/
+
+#define CSR_DELETE "DELETE FROM t WHERE ;;"
+
+/*---------------------------------------------------------------------------*/
+
+
+static void csr_concat(char *str, ...)
+/* concatena diversas strings ao mesmo tempo */
+{
+
+}
+
+static void csr_trim(char *str)
+/* apara as estremidades da string */
+{
+
+}
+
+static int csr_isSelect(char *str)
+/* informa se o query é um sql select */
+{
+	return 0;
+}
+
+
+
+
+
 
 
 int __csr_sql__ (csrObject *self, char *query)
 {
+
+	printf("query:\n\t%s\n\n", query);
+
 	return 1;
 }
 
@@ -29,9 +79,10 @@ int __csr_sql__ (csrObject *self, char *query)
 int __csr_insert__ (csrObject *self, char *table)
 {
 	/* variáveis locais */
-	char *col, *val;
+	char *col, *val, *query;
+	int result;
 	csrData *data = malloc (sizeof(csrData));
-	
+
 	/* testando informações */
 	if (self->data == NULL) {
 		CSR_WARN("There is no data to insert (see add method).", "insert(char *table)");
@@ -45,39 +96,165 @@ int __csr_insert__ (csrObject *self, char *table)
 
 	/* defindo valores iniciais */
 	data = self->data;
-	col = malloc ((strlen(data->col) + 1) * sizeof(char));
-	strcpy(col, data->col);
-	val = malloc ((strlen(data->val) + 1) * sizeof(char));
-	strcpy(val, data->val);
+
+	col = malloc (sizeof(char));
+	strcpy(col, "");
+
+	val = malloc (sizeof(char));
+	strcpy(val, "");
 
 	/* looping: definindo demais valores */
-	data = data->next;
-
 	while (data != NULL) {
 		CSR_INSERT_ATT(col, data->col);
 		CSR_INSERT_ATT(val, data->val);
 		data = data->next;
 	}
 
-	char tosco[] = CSR_INSERT(table, col, val);
-	
-	printf("%s\n\n", tosco);
+	/* construindo query */
+	query = malloc ((strlen(CSR_INSERT) + strlen(col) + strlen(val) + 1) * sizeof(char));
+	strcpy(query, "INSERT INTO ");
+	strcat(query, table);
+	strcat(query, " (");
+	strcat(query, col);
+	strcat(query, ") VALUES (");
+	strcat(query, val);
+	strcat(query, ");");
 
-	return 1;
+	/* executando query */
+	result = self->sql(query);
+
+	/* liberando memória */
+	free(query);
+	free(col);
+	free(val);	
+	free(data);
+	self->clear();
+
+	return result;
 }
 
 /*...........................................................................*/
 
 int __csr_update__ (csrObject *self, char *table)
 {
-	return 1;
+	/* variáveis locais */
+	char *set, *where, *query;
+	int result, whr;
+	csrData *data = malloc (sizeof(csrData));
+
+	/* testando informações */
+	if (self->data == NULL) {
+		CSR_WARN("There is no data to update (see add method).", "update(char *table)");
+		return 0;
+	}
+
+	if (table == NULL || strlen(table) == 0) {
+		CSR_WARN("The 'table' argument is mandatory.", "update(char *table)");
+		return 0;
+	}
+
+	/* defindo valores iniciais */
+	data = self->data;
+
+	set = malloc (sizeof(char));
+	strcpy(set, "");
+
+	where = malloc (sizeof(char));
+	strcpy(where, "");
+	
+	whr = 0;
+
+	/* looping: definindo demais valores */
+	while (data != NULL) {
+		if (data->where == 1 && whr == 0) {
+			CSR_UPDATE_ATT(where, data->col, data->val);
+			whr = 1;
+		} else {
+			CSR_UPDATE_ATT(set, data->col, data->val);
+		}
+		data = data->next;
+	}
+
+	/* construindo query */
+	query = malloc ((strlen(CSR_UPDATE) + strlen(set) + strlen(where) + 1) * sizeof(char));
+	strcpy(query, "UPDATE ");
+	strcat(query, table);
+	strcat(query, " SET ");
+	strcat(query, set);
+	if (whr == 1) {
+		strcat(query, " WHERE ");
+		strcat(query, where);
+	}
+	strcat(query, ";");
+
+	/* executando query */
+	result = self->sql(query);
+
+	/* liberando memória */
+	free(query);
+	free(set);
+	free(where);	
+	free(data);
+	self->clear();
+
+	return result;
 }
 
 /*...........................................................................*/
 
 int __csr_delete__ (csrObject *self, char *table)
 {
-	return 1;
+	/* variáveis locais */
+	char *where, *query;
+	int result;
+	csrData *data = malloc (sizeof(csrData));
+
+	/* testando informações */
+	if (self->data == NULL) {
+		CSR_WARN("There is no data to delete (see add method).", "delete(char *table)");
+		return 0;
+	}
+
+	if (table == NULL || strlen(table) == 0) {
+		CSR_WARN("The 'table' argument is mandatory.", "delete(char *table)");
+		return 0;
+	}
+
+	/* defindo valores iniciais */
+	data = self->data;
+
+	where = malloc (sizeof(char));
+	strcpy(where, "");
+
+	/* looping: definindo demais valores */
+	while (data != NULL) {
+		if (data->where == 1) {
+			CSR_UPDATE_ATT(where, data->col, data->val);
+			break;
+		}
+		data = data->next;
+	}
+
+	/* construindo query */
+	query = malloc ((strlen(CSR_DELETE) + strlen(where) + 1) * sizeof(char));
+	strcpy(query, "DELETE FROM ");
+	strcat(query, table);
+	if (strlen(where) > 0) {
+		strcat(query, " WHERE ");
+		strcat(query, where);
+	}
+	strcat(query, ";");
+
+	/* executando query */
+	result = self->sql(query);
+
+	/* liberando memória */
+	free(query);
+	free(where);	
+	free(data);
+	self->clear();
+
+	return result;
 }
 
 /*...........................................................................*/
