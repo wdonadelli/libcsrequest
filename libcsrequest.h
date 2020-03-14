@@ -44,11 +44,12 @@ Willian Donadelli <wdonadelli@gmail.com>
 	#define LIBRARY_CS_REQUEST_H
 
 /*-----------------------------------------------------------------------------
-	A presente biblioteca exige a biblioteca sqlite3, stdio, stdlib e string
+	A presente biblioteca exige as seguintes bibliotecas
 -----------------------------------------------------------------------------*/
 	#include <sqlite3.h>
 	#include <stdio.h>
 	#include <stdlib.h>
+	#include <stdarg.h>
 	#include <string.h>
 
 /*-----------------------------------------------------------------------------
@@ -73,15 +74,6 @@ Willian Donadelli <wdonadelli@gmail.com>
 	typedef struct
 	{
 		/*-- Métodos --*/
-		/*
-		int (*sql)(csrObject, char);
-		int (*insert)(csrObject);
-		int (*update)(csrObject, char, char);
-		int (*delete)(csrObject, char, char);
-		int (*view)(csrObject, char, char);
-		int (*add)(csrObject, char, char);
-		int (*clear)(csrObject);
-		*/
 		int (*sql)();
 		int (*insert)();
 		int (*update)();
@@ -110,11 +102,11 @@ Willian Donadelli <wdonadelli@gmail.com>
 /*-----------------------------------------------------------------------------
 	__csr_sql__ () executa uma requisição a partir de uma estrutura SQL
 -----------------------------------------------------------------------------*/
-	int __csr_sql__ (csrObject *self, char *query);
+	int __csr_sql__ (csrObject *self, char *query, void (*reader)());
 
 	#define __CSR_SQL__(SELF) \
-		int __csr_sql__##SELF (char *query) { \
-			return __csr_sql__(&SELF, query); \
+		int __csr_sql__##SELF (char *query, void (*reader)()) { \
+			return __csr_sql__(&SELF, query, reader); \
 		} \
 		SELF.sql = __csr_sql__##SELF;
 
@@ -154,11 +146,11 @@ Willian Donadelli <wdonadelli@gmail.com>
 /*-----------------------------------------------------------------------------
 	__csr_view__ () executa uma pesquisa a partir de uma lista de estrutura
 -----------------------------------------------------------------------------*/
-	int __csr_view__ (csrObject *self, char *table);
+	int __csr_view__ (csrObject *self, char *table, void (*reader)());
 
 	#define __CSR_VIEW__(SELF) \
-		int __csr_view__##SELF (char *table) { \
-			return __csr_view__(&SELF, table); \
+		int __csr_view__##SELF (char *table, void (*reader)()) { \
+			return __csr_view__(&SELF, table, reader); \
 		} \
 		SELF.view = __csr_view__##SELF;
 

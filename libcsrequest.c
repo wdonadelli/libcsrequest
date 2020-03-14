@@ -5,53 +5,50 @@
 
 #define CSR_INFO(msg, name) printf(CSR_MSG, 34, "INFO", __LINE__, name, msg)
 #define CSR_WARN(msg, name) printf(CSR_MSG, 33, "WARN", __LINE__, name, msg)
-#define CSR_ERROR(msg, name) printferr(CSR_MSG, 31, "ERROR", __LINE__, name, msg)
-
-/*---------------------------------------------------------------------------*/
-
-#define CSR_INSERT "INSERT INTO t () VALUES ();"
-
-#define CSR_INSERT_ATT(STR, ITEM) \
-	STR = realloc (STR, ((strlen(STR) + strlen(ITEM) + 3) * sizeof(char))); \
-	if (!STR) { \
-		CSR_WARN("Insufficient space in memory.", "insert(char *table)"); \
-		return 0; \
-	} \
-	strcat(STR, (strlen(STR) > 0 ? ", " : "")); \
-	strcat(STR, ITEM);
-
-/*---------------------------------------------------------------------------*/
-
-#define CSR_UPDATE "UPDATE t SET s WHERE ;"
-
-#define CSR_UPDATE_ATT(STR, COL, VAL) \
-	STR = realloc (STR, ((strlen(STR) + strlen(COL) + strlen(VAL) + 4) * sizeof(char))); \
-	if (!STR) { \
-		CSR_WARN("Insufficient space in memory.", "update(char *table)"); \
-		return 0; \
-	} \
-	strcat(STR, (strlen(STR) > 0 ? ", " : "")); \
-	strcat(STR, COL); \
-	strcat(STR, "="); \
-	strcat(STR, VAL);
-
-/*---------------------------------------------------------------------------*/
-
-#define CSR_DELETE "DELETE FROM t WHERE ;;"
+#define CSR_ERROR(msg, name) printf(CSR_MSG, 31, "ERROR", __LINE__, name, msg)
 
 /*---------------------------------------------------------------------------*/
 
 
-static void csr_concat(char *str, ...)
+static char *csr_cat(int len, ...)
 /* concatena diversas strings ao mesmo tempo */
 {
+	/* variáveis locais */
+	va_list arg;
+	char *str, *cat;
+	
+	/* inicializando variáveis locais */
+	str = malloc (sizeof(char));
+	if (str == NULL) {
+		CSR_ERROR("Memory allocation error (string).", "csr_cat()");
+		exit(1);
+	}
+	strcpy(str, "");
 
+	/* looping nos argumentos */
+	va_start(arg, len);
+
+	for (register int i = 0; i < len; i++) {
+		cat = va_arg(arg, char*);
+		if (cat == NULL) {cat = csr_cat(0);}
+		str = realloc (str, ((strlen(str) + strlen(cat) + 1) * sizeof(char)));
+		if (str == NULL) {
+			CSR_ERROR("Memory allocation error (string).", "csr_cat()");
+			exit(1);
+		}
+		strcat(str, cat);
+	}
+	
+	va_end(arg);
+
+	/* retornando ponteiro */
+	return str;
 }
 
-static void csr_trim(char *str)
+static int csr_trim(char *str)
 /* apara as estremidades da string */
 {
-
+	return 0;
 }
 
 static int csr_isSelect(char *str)
@@ -66,13 +63,51 @@ static int csr_isSelect(char *str)
 
 
 
-int __csr_sql__ (csrObject *self, char *query)
+
+
+
+
+
+
+
+
+
+
+
+int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 {
+	printf("---\n%s\n---\n\n", query);
 
-	printf("query:\n\t%s\n\n", query);
 
+
+
+
+
+
+
+	self->clear();
 	return 1;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*...........................................................................*/
 
@@ -81,7 +116,7 @@ int __csr_insert__ (csrObject *self, char *table)
 	/* variáveis locais */
 	char *col, *val, *query;
 	int result;
-	csrData *data = malloc (sizeof(csrData));
+	csrData *data;
 
 	/* testando informações */
 	if (self->data == NULL) {
@@ -95,40 +130,33 @@ int __csr_insert__ (csrObject *self, char *table)
 	}
 
 	/* defindo valores iniciais */
+	data = malloc (sizeof(csrData));
+	if (data == NULL) {
+		CSR_ERROR("Memory allocation error (csrData).", "insert(char *table)");
+		exit(1);
+	}
 	data = self->data;
-
-	col = malloc (sizeof(char));
-	strcpy(col, "");
-
-	val = malloc (sizeof(char));
-	strcpy(val, "");
+	col  = csr_cat(0);
+	val  = csr_cat(0);
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		CSR_INSERT_ATT(col, data->col);
-		CSR_INSERT_ATT(val, data->val);
+		col  = strlen(col) > 0 ? csr_cat(3, col, ", ", data->col) : csr_cat(1, data->col);
+		val  = strlen(val) > 0 ? csr_cat(3, val, ", ", data->val) : csr_cat(1, data->val);
 		data = data->next;
 	}
 
 	/* construindo query */
-	query = malloc ((strlen(CSR_INSERT) + strlen(col) + strlen(val) + 1) * sizeof(char));
-	strcpy(query, "INSERT INTO ");
-	strcat(query, table);
-	strcat(query, " (");
-	strcat(query, col);
-	strcat(query, ") VALUES (");
-	strcat(query, val);
-	strcat(query, ");");
+	query = csr_cat(7, "INSERT INTO ", table, " (", col, ") VALUES (", val, ");");
 
 	/* executando query */
-	result = self->sql(query);
+	result = self->sql(query, NULL);
 
 	/* liberando memória */
 	free(query);
 	free(col);
 	free(val);	
 	free(data);
-	self->clear();
 
 	return result;
 }
@@ -139,8 +167,8 @@ int __csr_update__ (csrObject *self, char *table)
 {
 	/* variáveis locais */
 	char *set, *where, *query;
-	int result, whr;
-	csrData *data = malloc (sizeof(csrData));
+	int result;
+	csrData *data;
 
 	/* testando informações */
 	if (self->data == NULL) {
@@ -154,48 +182,42 @@ int __csr_update__ (csrObject *self, char *table)
 	}
 
 	/* defindo valores iniciais */
-	data = self->data;
-
-	set = malloc (sizeof(char));
-	strcpy(set, "");
-
-	where = malloc (sizeof(char));
-	strcpy(where, "");
-	
-	whr = 0;
+	data = malloc (sizeof(csrData));
+	if (data == NULL) {
+		CSR_ERROR("Memory allocation error (csrData).", "update(char *table)");
+		exit(1);
+	}
+	data  = self->data;
+	set   = csr_cat(0);
+	where = csr_cat(0);
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		if (data->where == 1 && whr == 0) {
-			CSR_UPDATE_ATT(where, data->col, data->val);
-			whr = 1;
+		if (data->where == 1 && strlen(where) == 0) {
+			where = csr_cat(4, " WHERE ", data->col, " = ", data->val);
+		} else if (strlen(set) > 0) {
+			set = csr_cat(5, set, ", ", data->col, " = ", data->val);
 		} else {
-			CSR_UPDATE_ATT(set, data->col, data->val);
+			set = csr_cat(3, data->col, " = ", data->val);
 		}
 		data = data->next;
 	}
 
 	/* construindo query */
-	query = malloc ((strlen(CSR_UPDATE) + strlen(set) + strlen(where) + 1) * sizeof(char));
-	strcpy(query, "UPDATE ");
-	strcat(query, table);
-	strcat(query, " SET ");
-	strcat(query, set);
-	if (whr == 1) {
-		strcat(query, " WHERE ");
-		strcat(query, where);
+	if (strlen(where) > 0) {
+		query = csr_cat(6, "UPDATE ", table, " SET ", set, where, ";");
+	} else {
+		query = csr_cat(5, "UPDATE ", table, " SET ", set, ";");
 	}
-	strcat(query, ";");
 
 	/* executando query */
-	result = self->sql(query);
+	result = self->sql(query, NULL);
 
 	/* liberando memória */
 	free(query);
 	free(set);
 	free(where);	
 	free(data);
-	self->clear();
 
 	return result;
 }
@@ -207,7 +229,7 @@ int __csr_delete__ (csrObject *self, char *table)
 	/* variáveis locais */
 	char *where, *query;
 	int result;
-	csrData *data = malloc (sizeof(csrData));
+	csrData *data;
 
 	/* testando informações */
 	if (self->data == NULL) {
@@ -221,47 +243,99 @@ int __csr_delete__ (csrObject *self, char *table)
 	}
 
 	/* defindo valores iniciais */
-	data = self->data;
-
-	where = malloc (sizeof(char));
-	strcpy(where, "");
+	data = malloc (sizeof(csrData));
+	if (data == NULL) {
+		CSR_ERROR("Memory allocation error (csrData).", "delete(char *table)");
+		exit(1);
+	}
+	data  = self->data;
+	where = csr_cat(0);
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
 		if (data->where == 1) {
-			CSR_UPDATE_ATT(where, data->col, data->val);
+			where = csr_cat(4, " WHERE ", data->col, " = ", data->val);
 			break;
 		}
 		data = data->next;
 	}
 
 	/* construindo query */
-	query = malloc ((strlen(CSR_DELETE) + strlen(where) + 1) * sizeof(char));
-	strcpy(query, "DELETE FROM ");
-	strcat(query, table);
 	if (strlen(where) > 0) {
-		strcat(query, " WHERE ");
-		strcat(query, where);
+		query = csr_cat(4, "DELETE FROM ", table, where, ";");
+	} else {
+		query = csr_cat(3, "DELETE FROM ", table, ";");
 	}
-	strcat(query, ";");
 
 	/* executando query */
-	result = self->sql(query);
+	result = self->sql(query, NULL);
 
 	/* liberando memória */
 	free(query);
 	free(where);	
 	free(data);
-	self->clear();
 
 	return result;
 }
 
 /*...........................................................................*/
 
-int __csr_view__ (csrObject *self, char *table)
+int __csr_view__ (csrObject *self, char *table, void (*reader)())
 {
-	return 1;
+	/* variáveis locais */
+	char *col, *where, *query;
+	int result;
+	csrData *data;
+
+	/* testando informações */
+	if (table == NULL || strlen(table) == 0) {
+		CSR_WARN("The 'table' argument is mandatory.", "view(char *table, void (*reader)())");
+		return 0;
+	}
+
+	/* defindo valores iniciais */
+	data = malloc (sizeof(csrData));
+	if (data == NULL) {
+		CSR_ERROR("Memory allocation error (csrData).", "view(char *table, void (*reader)())");
+		exit(1);
+	}
+	data  = self->data;
+	col   = csr_cat(0);
+	where = csr_cat(0);
+
+	/* looping: definindo demais valores */
+	while (data != NULL) {
+		if (data->where == 1 && strlen(where) == 0) {
+			where = csr_cat(4, " WHERE ", data->col, " = ", data->val);
+		} else if (strlen(col) > 0) {
+			col = csr_cat(3, col, ", ", data->col);
+		} else {
+			col = csr_cat(1, data->col);
+		}
+		data = data->next;
+	}
+
+	/* construindo query */
+	if (strlen(col) == 0) {
+		col = csr_cat(1, "*");
+	}
+	
+	if (strlen(where) > 0) {
+		query = csr_cat(6, "SELECT ", col, " FROM ", table, where, ";");
+	} else {
+		query = csr_cat(5, "SELECT ", col, " FROM ", table, ";");
+	}
+
+	/* executando query */
+	result = self->sql(query, reader);
+
+	/* liberando memória */
+	free(query);
+	free(col);
+	free(where);	
+	free(data);
+
+	return result;
 }
 
 /*...........................................................................*/
@@ -277,37 +351,15 @@ int __csr_add__ (csrObject *self, char *column, char *value, int where)
 		return 0;
 	}
 
-	/* alocando memória */
+	/* definindo variáveis */
 	data = malloc (sizeof(csrData));
-	if (!data) {
-		CSR_WARN("Insufficient space in memory.", "add(char *column, char *value)");
-		return 0;
+	if (data == NULL) {
+		CSR_ERROR("Memory allocation error (csrData).", "add(char *column, char *value)");
+		exit(1);
 	}
-
-	/* data->where */
 	data->where = where == 1 ? 1 : 0;
-
-	/* data->col */
-	data->col = malloc ((strlen(column) + 1) * sizeof (char));
-	if (!data->col) {
-		CSR_WARN("Insufficient space in memory for 'column'.", "add(char *column, char *value)");
-		return 0;
-	}
-	strcpy(data->col, column);
-
-	/* data->val */
-	data->val = malloc ((value == NULL ? 5 : (strlen(column) + 3)) * sizeof (char));
-	if (!data->val) {
-		CSR_WARN("Insufficient space in memory for 'value'.", "add(char *column, char *value)");
-		return 0;
-	}
-	if (value == NULL) {
-		strcpy(data->val, "NULL");
-	} else {
-		strcpy(data->val, "'");
-		strcat(data->val, value);
-		strcat(data->val, "'");
-	}
+	data->col   = csr_cat(1, column);
+	data->val   = value == NULL ? csr_cat(1, "NULL") : csr_cat(3, "'", column, "'");
 
 	/* data->next */
 	data->next = self->data;
@@ -326,7 +378,6 @@ int __csr_clear__ (csrObject *self)
 
 	/* looping para liberar as memórias alocadas */
 	while (data != NULL) {
-		printf("col: %s\nval: %s\nwhere: %d\n\n", data->col, data->val, data->where);
 		free(data->col);
 		free(data->val);
 		data->where = 0;
