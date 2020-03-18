@@ -30,9 +30,6 @@ SOFTWARE.
 Ubuntu package
 	libsqlite3-dev
 
-Compilation with gcc:
-FIXME gcc `pkg-config --cflags gtk+-3.0` -c libuigtk.c `pkg-config --libs gtk+-3.0`;
-
 The library is hosted at https://github.com/wdonadelli/libcsrequest and the manual
 at https://wdonadelli.github.io/libcsrequest/.
 
