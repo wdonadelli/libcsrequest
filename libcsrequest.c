@@ -78,23 +78,43 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 {
 	printf("---\n%s\n---\n\n", query);
 
+	/* variáveis locais */
+	sqlite3 *db;
+	int open, exec;
+	char *error = NULL;
+	
+	/* valores iniciais */
+	self->error = 0;
+	self->msg = csr_cat(0);
 
+	/* abrindo/criando banco de dados */
+	open = sqlite3_open(self->file, &db);
 
+	/* verificando sucesso no procedimento anterior */
+	if (open != SQLITE_OK) {
+		self->error = 1;	
+		self->msg = csr_cat(1, sqlite3_errmsg(db));
+		return 0;
+	}
+	
+	/* executando ação */	
+	exec = sqlite3_exec(db, query, NULL, 0, &error);
+	
+	/* verificando sucesso no procedimento anterior */
+	if (exec != SQLITE_OK) {
+		self->error = 1;	
+		self->msg = csr_cat(1, error);
+		sqlite3_free(error);
+		sqlite3_close(db);
+		return 0;
+	}
 
-
-
-
-
+	/* limpando memória e fechando banco */
 	self->clear();
+	sqlite3_close(db);
+
 	return 1;
 }
-
-
-
-
-
-
-
 
 
 
