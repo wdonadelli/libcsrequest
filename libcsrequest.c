@@ -9,9 +9,10 @@
 
 /*---------------------------------------------------------------------------*/
 
+/* concatena diversas strings ao mesmo tempo */
+static char *csr_cat(int len, ...);
 
 static char *csr_cat(int len, ...)
-/* concatena diversas strings ao mesmo tempo */
 {
 	/* variáveis locais */
 	va_list arg;
@@ -45,17 +46,24 @@ static char *csr_cat(int len, ...)
 	return str;
 }
 
-static int csr_trim(char *str)
-/* apara as estremidades da string */
+/*...........................................................................*/
+
+static int callback(void *id, int len, char **val, char **col);
+
+static int callback(void *id, int len, char **val, char **col)
 {
+	int i;
+	//fprintf(stderr, "%s: ", (char*)id);
+	printf("rowid: %s\n", (char*)id);
+
+	for(i = 0; i<len; i++){
+		printf("%s = %s\n", col[i], val[i] ? val[i] : "NULL");
+	}
+
+	printf("\n");
 	return 0;
 }
 
-static int csr_isSelect(char *str)
-/* informa se o query é um sql select */
-{
-	return 0;
-}
 
 
 
@@ -68,11 +76,7 @@ static int csr_isSelect(char *str)
 
 
 
-
-
-
-
-
+/*...........................................................................*/
 
 int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 {
@@ -98,7 +102,7 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	}
 	
 	/* executando ação */	
-	exec = sqlite3_exec(db, query, NULL, 0, &error);
+	exec = sqlite3_exec(db, query, callback, "oi", &error);
 	
 	/* verificando sucesso no procedimento anterior */
 	if (exec != SQLITE_OK) {
@@ -300,7 +304,7 @@ int __csr_delete__ (csrObject *self, char *table)
 
 /*...........................................................................*/
 
-int __csr_view__ (csrObject *self, char *table, void (*reader)())
+int __csr_select__ (csrObject *self, char *table, void (*reader)())
 {
 	/* variáveis locais */
 	char *col, *where, *query;
@@ -309,14 +313,14 @@ int __csr_view__ (csrObject *self, char *table, void (*reader)())
 
 	/* testando informações */
 	if (table == NULL || strlen(table) == 0) {
-		CSR_WARN("The 'table' argument is mandatory.", "view(char *table, void (*reader)())");
+		CSR_WARN("The 'table' argument is mandatory.", "select(char *table, void (*reader)())");
 		return 0;
 	}
 
 	/* defindo valores iniciais */
 	data = malloc (sizeof(csrData));
 	if (data == NULL) {
-		CSR_ERROR("Memory allocation error (csrData).", "view(char *table, void (*reader)())");
+		CSR_ERROR("Memory allocation error (csrData).", "select(char *table, void (*reader)())");
 		exit(1);
 	}
 	data  = self->data;
@@ -379,7 +383,7 @@ int __csr_add__ (csrObject *self, char *column, char *value, int where)
 	}
 	data->where = where == 1 ? 1 : 0;
 	data->col   = csr_cat(1, column);
-	data->val   = value == NULL ? csr_cat(1, "NULL") : csr_cat(3, "'", column, "'");
+	data->val   = value == NULL ? csr_cat(1, "NULL") : csr_cat(3, "'", value, "'");
 
 	/* data->next */
 	data->next = self->data;
@@ -409,5 +413,14 @@ int __csr_clear__ (csrObject *self)
 	/* zerando self->data */
 	self->data = NULL;
 
+	return 1;
+}
+
+
+
+
+
+int __csr_query__ (csrObject *self, char *value, char *column, int item)
+{
 	return 1;
 }

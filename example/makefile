@@ -6,9 +6,9 @@ LIB=../libcsrequest
 MAIN=../example
 #MAIN=source/example
 
-all: folder main
+all: folder example
 
-main: libcsrequest example
+example: libcsrequest.o example.o
 	@ echo "> Generating executable:"
 	gcc -o example objects/example.o objects/libcsrequest.o -l sqlite3
 	@ clear
@@ -16,11 +16,11 @@ main: libcsrequest example
 	./example
 	@ echo "\n> Finished."
 
-libcsrequest:
+libcsrequest.o:
 	@ echo "> Compiling libcsrequest.c:"
 	gcc -o objects/libcsrequest.o -c $(LIB).c -l sqlite3
 
-example:
+example.o:
 	@ echo "> Compiling example.c:"
 	gcc -o objects/example.o -c $(MAIN).c -l sqlite3
 

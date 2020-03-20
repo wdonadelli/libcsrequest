@@ -50,7 +50,7 @@ Willian Donadelli <wdonadelli@gmail.com>
 	#include <string.h>
 
 /*-----------------------------------------------------------------------------
-	Estrutura do retorno de pesquisas
+	Estrutura dos campos do SQL
 	https://www.sqlite.org/limits.html
 		SQLITE_MAX_LENGTH 1000000000
 		SQLITE_MAX_COLUMN 2000
@@ -71,20 +71,24 @@ Willian Donadelli <wdonadelli@gmail.com>
 	typedef struct
 	{
 		/*-- Métodos --*/
-		int (*sql)();
-		int (*insert)();
-		int (*update)();
-		int (*delete)();
-		int (*view)();
-		int (*add)();
-		int (*clear)();
+		int (*sql)();    /* executa uma instrução SQL */
+		int (*insert)(); /* constrói uma instrução INSERT (ver método add) */
+		int (*update)(); /* constrói uma instrução UPDATE (ver método add) */
+		int (*delete)(); /* constrói uma instrução DELETE (ver método add) */
+		int (*select)(); /* constrói uma instrução SELECT (ver método add) */
+		int (*add)();    /* registra informações para contrutores acima */
+		int (*clear)();  /* apaga registros (ver método add) */
+		int (*query)();  /* retorna o valor da coluna (ver método sql) */
 		
 		/*-- Atributos --*/
-		char *file;            /* nome do arquivo */
-		unsigned int error: 1; /* informa se houve erro na última operação */
-		char *msg;             /* informa mensagem de erro da última operação */
-		csrData *data;         /* lista de inclusões */
-		//csrData **query; /* [linhas][colunas] */
+		char *file;            /* caminho para o banco de dados */
+		unsigned int error: 1; /* registra erro na última operação */
+		char *msg;             /* registra mensagem de erro da última operação */
+		csrData *data;         /* lista de registros */
+		char **col;            /* guarda o array com nomes das colunas */
+		char **val;            /* guarda o array com valores das colunas */
+		int len;               /* guarda a quantidade de colunas */
+		int row;               /* guarda a linha da pesquisa */
 	} csrObject;
 	
 /*-----------------------------------------------------------------------------
@@ -97,98 +101,153 @@ Willian Donadelli <wdonadelli@gmail.com>
 -----------------------------------------------------------------------------*/
 
 /*-----------------------------------------------------------------------------
-	__csr_sql__ () executa uma requisição a partir de uma estrutura SQL
+	__csr_sql__ () executa uma instrução SQL
+	query:  string contendo a instrução SQL
+	reader: função a executar durante a pesquisa (opcional)
+	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_sql__ (csrObject *self, char *query, void (*reader)());
 
-	#define __CSR_SQL__(SELF) \
-		int __csr_sql__##SELF (char *query, void (*reader)()) { \
-			return __csr_sql__(&SELF, query, reader); \
-		} \
-		SELF.sql = __csr_sql__##SELF;
+	#define __CSR_SQL__(SELF)												\
+		int __csr_sql__##SELF (char *query, void (*reader)())		\
+		{																			\
+			return __csr_sql__(&SELF, query, reader);					\
+		}																			\
+		SELF.sql = __csr_sql__##SELF;										\
 
 /*-----------------------------------------------------------------------------
-	__csr_insert__ () executa uma inserção a partir de uma lista de estrutura
+	__csr_insert__ () constrói uma instrução INSERT e a executa a partir das
+	informações de registros adicionados pelo método add()
+	table: string contendo o nome da tabela
+	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_insert__ (csrObject *self, char *table);
 
-	#define __CSR_INSERT__(SELF) \
-		int __csr_insert__##SELF (char *table) { \
-			return __csr_insert__(&SELF, table); \
-		} \
-		SELF.insert = __csr_insert__##SELF;
+	#define __CSR_INSERT__(SELF)						\
+		int __csr_insert__##SELF (char *table)		\
+		{														\
+			return __csr_insert__(&SELF, table);	\
+		}														\
+		SELF.insert = __csr_insert__##SELF;			\
 
 /*-----------------------------------------------------------------------------
-	__csr_update__ () executa uma alteração a partir de uma lista de estrutura
+	__csr_update__ () constrói uma instrução UPDATE e a executa a partir das
+	informações de registros adicionados pelo método add()
+	table: string contendo o nome da tabela
+	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_update__ (csrObject *self, char *table);
 
-	#define __CSR_UPDATE__(SELF) \
-		int __csr_update__##SELF (char *table) { \
-			return __csr_update__(&SELF, table); \
-		} \
-		SELF.update = __csr_update__##SELF;
+	#define __CSR_UPDATE__(SELF)						\
+		int __csr_update__##SELF (char *table)		\
+		{														\
+			return __csr_update__(&SELF, table);	\
+		}														\
+		SELF.update = __csr_update__##SELF;			\
 
 /*-----------------------------------------------------------------------------
-	__csr_delete__ () executa uma deleção a partir de uma lista de estrutura
+	__csr_delete__ () constrói uma instrução DELETE e a executa a partir das
+	informações de registros adicionados pelo método add()
+	table: string contendo o nome da tabela
+	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_delete__ (csrObject *self, char *table);
 
-	#define __CSR_DELETE__(SELF) \
-		int __csr_delete__##SELF (char *table) { \
-			return __csr_delete__(&SELF, table); \
-		} \
-		SELF.delete = __csr_delete__##SELF;
+	#define __CSR_DELETE__(SELF)						\
+		int __csr_delete__##SELF (char *table)		\
+		{														\
+			return __csr_delete__(&SELF, table);	\
+		}														\
+		SELF.delete = __csr_delete__##SELF;			\
 
 /*-----------------------------------------------------------------------------
-	__csr_view__ () executa uma pesquisa a partir de uma lista de estrutura
+	__csr_select__ () constrói uma instrução SELECT e a executa a partir das
+	informações de registros adicionados pelo método add()
+	table: string contendo o nome da tabela
+	reader: função a executar durante a pesquisa (opcional)
+	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
-	int __csr_view__ (csrObject *self, char *table, void (*reader)());
+	int __csr_select__ (csrObject *self, char *table, void (*reader)());
 
-	#define __CSR_VIEW__(SELF) \
-		int __csr_view__##SELF (char *table, void (*reader)()) { \
-			return __csr_view__(&SELF, table, reader); \
-		} \
-		SELF.view = __csr_view__##SELF;
+	#define __CSR_SELECT__(SELF)												\
+		int __csr_select__##SELF (char *table, void (*reader)())		\
+		{																				\
+			return __csr_select__(&SELF, table, reader);					\
+		}																				\
+		SELF.select = __csr_select__##SELF;									\
 
 /*-----------------------------------------------------------------------------
-	__csr_add__ () adiciona dados para execução dos métodos acima (-sql)
+	__csr_add__ () adiciona registros para execução dos métodos construtores de
+	instruções SQL
+	column: string contendo o nome da coluna
+	value:  string contendo o valor da coluna
+	where:  se 1, informado como critério de pesquisa (update/delete/select)
+	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_add__ (csrObject *self, char *column, char *value, int where);
 
-	#define __CSR_ADD__(SELF) \
-		int __csr_add__##SELF (char *column, char *value, int where) { \
-			return __csr_add__(&SELF, column, value, where); \
-		} \
-		SELF.add = __csr_add__##SELF;
+	#define __CSR_ADD__(SELF)														\
+		int __csr_add__##SELF (char *column, char *value, int where)	\
+		{																					\
+			return __csr_add__(&SELF, column, value, where);				\
+		}																					\
+		SELF.add = __csr_add__##SELF;												\
 
 /*-----------------------------------------------------------------------------
 	__csr_clear__ () limpa os dados adicionados pelo método add
+	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_clear__ (csrObject *self);
 
-	#define __CSR_CLEAR__(SELF) \
-		int __csr_clear__##SELF () { \
-			return __csr_clear__(&SELF); \
-		} \
-		SELF.clear = __csr_clear__##SELF;
+	#define __CSR_CLEAR__(SELF)				\
+		int __csr_clear__##SELF ()				\
+		{												\
+			return __csr_clear__(&SELF);		\
+		}												\
+		SELF.clear = __csr_clear__##SELF;	\
+
+/*-----------------------------------------------------------------------------
+	__csr_query__ () retorna o valor da coluna a partir de seu nome ou sequência
+	value:  ponteiro para string que receberá o valor da coluna
+	column: string contendo o nome da coluna
+	number: inteiro informando sequência da coluna (column precisa NULL)
+	Retorna um ponteiro (string) para o valor da coluna
+-----------------------------------------------------------------------------*/
+	int __csr_query__ (csrObject *self, char *value, char *column, int item);
+
+	#define __CSR_QUERY__(SELF)													\
+		int __csr_query__##SELF (char *value, char *column, int item)	\
+		{																					\
+			return __csr_query__(&SELF, value, column, item);				\
+		}																					\
+		SELF.query = __csr_query__##SELF;										\
+
+
 
 /*-----------------------------------------------------------------------------
 	new_CSrequest () construtor da estrutura
 -----------------------------------------------------------------------------*/
-	#define new_CSrequest(OBJECT, FILE) \
-	\
-		csrObject OBJECT; \
-		OBJECT.file = malloc ((strlen(FILE) + 1) * sizeof (char)); \
-		strcpy(OBJECT.file, FILE); \
-		OBJECT.error = 0; \
-		OBJECT.data = NULL; \
-		__CSR_SQL__(OBJECT); \
-		__CSR_INSERT__(OBJECT); \
-		__CSR_UPDATE__(OBJECT); \
-		__CSR_DELETE__(OBJECT); \
-		__CSR_VIEW__(OBJECT); \
-		__CSR_ADD__(OBJECT); \
-		__CSR_CLEAR__(OBJECT);
+	#define new_CSrequest(OBJECT, FILE)										\
+																						\
+		csrObject OBJECT;															\
+		OBJECT.file = malloc ((strlen(FILE) + 1) * sizeof (char));	\
+		strcpy(OBJECT.file, FILE);												\
+		OBJECT.error = 0;															\
+		OBJECT.msg = malloc (2 * sizeof (char));							\
+		strcpy(OBJECT.msg, "");													\
+		OBJECT.data = NULL;														\
+		OBJECT.col = NULL;														\
+		OBJECT.val = NULL;														\
+		OBJECT.len = 0;															\
+		OBJECT.row = 0;															\
+		__CSR_SQL__(OBJECT);														\
+		__CSR_INSERT__(OBJECT);													\
+		__CSR_UPDATE__(OBJECT);													\
+		__CSR_DELETE__(OBJECT);													\
+		__CSR_SELECT__(OBJECT);													\
+		__CSR_ADD__(OBJECT);														\
+		__CSR_CLEAR__(OBJECT);													\
+		__CSR_QUERY__(OBJECT);													\
+
 
 #endif
