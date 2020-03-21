@@ -1,28 +1,33 @@
 #include "libcsrequest.h"
 
+void pquery(csrQuery x);
+
+
 int main(int argc, char *argv[]) {
 
-	new_CSrequest(db, "example.db");
+	char sql[] = "CREATE TABLE tabela (col1 TEXT, col2 NUMBER);";
 
-	if (!db.sql("CREATE TABLE tabelinha (col4 TEXT);")) {
+	new_csr(db, "example.db");
+
+	if (!db.sql(sql)) {
 		printf("Erro: %s\n\n", db.msg);
 	}
 
-	if (!db.add("col4", "val 1", 0)) {printf("Erro no add");}
-	//if (!db.add("col4", "val 2", 0)) {printf("Erro no add");}
-	//if (!db.add("col4", "val 3", 0)) {printf("Erro no add");}
-	//if (!db.add("col4", "val 4", 1)) {printf("Erro no add");}
+	if (!db.add("col1", "valor 1", 0)) {printf("Erro no add");}
+	if (!db.add("col2", "2", 0)) {printf("Erro no add");}
 
-	if (!db.insert("tabelinha")) {
+	if (!db.insert("tabela")) {
 		printf("Erro: %s\n\n", db.msg);
 	}
 
-	if (!db.select("tabelinha", NULL)) {
+	if (!db.select("tabela", pquery)) {
 		printf("Erro: %s\n\n", db.msg);
 	}
+}
 
-	//db.clear();
 
-	//if (db.add(NULL, NULL)) printf("erro\n"); else printf("sem erro\n");
-
+void pquery(csrQuery x)
+{
+	
+	printf("col1: %s\ncol2: %s\n\n", x.get("col1"), x.get("col2"));
 }

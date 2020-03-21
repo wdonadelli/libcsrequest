@@ -9,10 +9,8 @@
 
 /*---------------------------------------------------------------------------*/
 
-/* concatena diversas strings ao mesmo tempo */
-static char *csr_cat(int len, ...);
-
 static char *csr_cat(int len, ...)
+/* concatena diversas strings ao mesmo tempo */
 {
 	/* variáveis locais */
 	va_list arg;
@@ -48,21 +46,57 @@ static char *csr_cat(int len, ...)
 
 /*...........................................................................*/
 
-static int callback(void *id, int len, char **val, char **col);
-
-static int callback(void *id, int len, char **val, char **col)
+static char *__get__ (csrQuery self, char *col)
 {
+	/* variáveis locais */
 	int i;
-	//fprintf(stderr, "%s: ", (char*)id);
-	printf("rowid: %s\n", (char*)id);
 
-	for(i = 0; i<len; i++){
-		printf("%s = %s\n", col[i], val[i] ? val[i] : "NULL");
+	/* looping para encontrar coluna */
+	for(i = 0; i < self.len; i++){
+		if (self.col[i] == col) {
+			return self.val[i] == NULL ? "NULL" : self.val[i];
+		}
 	}
 
-	printf("\n");
+	return NULL;
+}
+
+void (*QUERY)();
+
+static int callback(void *data, int len, char **val, char **col)
+/* função a ser acionada durante pesquisa */
+{
+	/* variáveis locais */
+	csrQuery arg;
+	
+
+	/* definindo variáveis locais */ //FIXME não está copiando os arrays
+	arg.len = len;
+	arg.col = malloc (sizeof(col));
+	arg.col = col;
+	arg.val = malloc (sizeof(val));
+	arg.val = val;
+
+	/* construindo método get local */
+	char *__localGet__(char *col)
+	{
+		return __get__(arg, col);
+	}
+	arg.get = __localGet__;
+		
+	/* devolvendo função */
+	if (QUERY != NULL) {QUERY(arg);}
+	
+	/* liberando memória */
+	//free(arg.col);
+	//free(arg.val);
+
+	/* retorna 0 se houve sucesso */
 	return 0;
 }
+
+
+
 
 
 
@@ -101,8 +135,10 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 		return 0;
 	}
 	
+	QUERY = reader;
+
 	/* executando ação */	
-	exec = sqlite3_exec(db, query, callback, "oi", &error);
+	exec = sqlite3_exec(db, query, callback, NULL, &error);
 	
 	/* verificando sucesso no procedimento anterior */
 	if (exec != SQLITE_OK) {
@@ -413,14 +449,5 @@ int __csr_clear__ (csrObject *self)
 	/* zerando self->data */
 	self->data = NULL;
 
-	return 1;
-}
-
-
-
-
-
-int __csr_query__ (csrObject *self, char *value, char *column, int item)
-{
 	return 1;
 }

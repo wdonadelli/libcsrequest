@@ -50,7 +50,7 @@ Willian Donadelli <wdonadelli@gmail.com>
 	#include <string.h>
 
 /*-----------------------------------------------------------------------------
-	Estrutura dos campos do SQL
+	Estrutura dos registros
 	https://www.sqlite.org/limits.html
 		SQLITE_MAX_LENGTH 1000000000
 		SQLITE_MAX_COLUMN 2000
@@ -59,11 +59,24 @@ Willian Donadelli <wdonadelli@gmail.com>
 -----------------------------------------------------------------------------*/
 	typedef struct csrData
 	{
-		char *col;
-		char *val;
-		unsigned int where: 1;
-		struct csrData *next;
+		char *col;             /* nome da coluna */
+		char *val;             /* valor da coluna */
+		unsigned int where: 1; /* informação sobre o filtro WHERE */
+		struct csrData *next;  /* próximo registro */
 	} csrData;
+
+
+/*-----------------------------------------------------------------------------
+	Estrutura das pesquisas
+-----------------------------------------------------------------------------*/
+	typedef struct csrQuery
+	{
+		char **col;     /* guarda o array com nomes das colunas */
+		char **val;     /* guarda o array com valores das colunas */
+		int len;        /* guarda a quantidade de colunas */
+		char *(*get)(); /* retorna o valor da coluna (ver método sql) */
+	} csrQuery;
+
 
 /*-----------------------------------------------------------------------------
 	Estrutura do objeto
@@ -78,17 +91,12 @@ Willian Donadelli <wdonadelli@gmail.com>
 		int (*select)(); /* constrói uma instrução SELECT (ver método add) */
 		int (*add)();    /* registra informações para contrutores acima */
 		int (*clear)();  /* apaga registros (ver método add) */
-		int (*query)();  /* retorna o valor da coluna (ver método sql) */
 		
 		/*-- Atributos --*/
 		char *file;            /* caminho para o banco de dados */
 		unsigned int error: 1; /* registra erro na última operação */
 		char *msg;             /* registra mensagem de erro da última operação */
 		csrData *data;         /* lista de registros */
-		char **col;            /* guarda o array com nomes das colunas */
-		char **val;            /* guarda o array com valores das colunas */
-		int len;               /* guarda a quantidade de colunas */
-		int row;               /* guarda a linha da pesquisa */
 	} csrObject;
 	
 /*-----------------------------------------------------------------------------
@@ -207,39 +215,17 @@ Willian Donadelli <wdonadelli@gmail.com>
 		SELF.clear = __csr_clear__##SELF;	\
 
 /*-----------------------------------------------------------------------------
-	__csr_query__ () retorna o valor da coluna a partir de seu nome ou sequência
-	value:  ponteiro para string que receberá o valor da coluna
-	column: string contendo o nome da coluna
-	number: inteiro informando sequência da coluna (column precisa NULL)
-	Retorna um ponteiro (string) para o valor da coluna
+	new_csr () construtor da estrutura
 -----------------------------------------------------------------------------*/
-	int __csr_query__ (csrObject *self, char *value, char *column, int item);
-
-	#define __CSR_QUERY__(SELF)													\
-		int __csr_query__##SELF (char *value, char *column, int item)	\
-		{																					\
-			return __csr_query__(&SELF, value, column, item);				\
-		}																					\
-		SELF.query = __csr_query__##SELF;										\
-
-
-
-/*-----------------------------------------------------------------------------
-	new_CSrequest () construtor da estrutura
------------------------------------------------------------------------------*/
-	#define new_CSrequest(OBJECT, FILE)										\
+	#define new_csr(OBJECT, FILE)										\
 																						\
 		csrObject OBJECT;															\
 		OBJECT.file = malloc ((strlen(FILE) + 1) * sizeof (char));	\
+		OBJECT.msg  = malloc (2 * sizeof (char));							\
 		strcpy(OBJECT.file, FILE);												\
-		OBJECT.error = 0;															\
-		OBJECT.msg = malloc (2 * sizeof (char));							\
 		strcpy(OBJECT.msg, "");													\
-		OBJECT.data = NULL;														\
-		OBJECT.col = NULL;														\
-		OBJECT.val = NULL;														\
-		OBJECT.len = 0;															\
-		OBJECT.row = 0;															\
+		OBJECT.error = 0;															\
+		OBJECT.data  = NULL;														\
 		__CSR_SQL__(OBJECT);														\
 		__CSR_INSERT__(OBJECT);													\
 		__CSR_UPDATE__(OBJECT);													\
@@ -247,7 +233,6 @@ Willian Donadelli <wdonadelli@gmail.com>
 		__CSR_SELECT__(OBJECT);													\
 		__CSR_ADD__(OBJECT);														\
 		__CSR_CLEAR__(OBJECT);													\
-		__CSR_QUERY__(OBJECT);													\
 
 
 #endif
