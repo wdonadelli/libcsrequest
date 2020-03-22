@@ -2,11 +2,11 @@
 Library CSrequest (v1.0.0) <wdonadelli@gmail.com>
 
 This is a library written in C language designed to simplify requests to the
-SQLite database. (see https://www.sqlite.org/index.html)
+SQLite database.
 
-The library is hosted at https://github.com/wdonadelli/libcsrequest and the manual
-at https://wdonadelli.github.io/libcsrequest/.
-
+https://www.sqlite.org/index.html
+https://github.com/wdonadelli/libcsrequest
+https://wdonadelli.github.io/libcsrequest/
 
 Ubuntu package
 	libsqlite3-dev
@@ -35,9 +35,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 -----------------------------------------------------------------------------*/
 
-#ifndef LIBRARY_CS_REQUEST_H
+#ifndef LIBRARY_CSR_H
 
-	#define LIBRARY_CS_REQUEST_H
+	#define LIBRARY_CSR_H
 
 /*-----------------------------------------------------------------------------
 	A presente biblioteca exige as seguintes bibliotecas
