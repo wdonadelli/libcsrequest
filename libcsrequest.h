@@ -1,5 +1,5 @@
 /*-----------------------------------------------------------------------------
-Library CSrequest (v1.0.0) <wdonadelli@gmail.com>
+Library CSRequest (v1.0.0) <wdonadelli@gmail.com>
 
 This is a library written in C language designed to simplify requests to the
 SQLite database.
