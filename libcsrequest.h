@@ -8,8 +8,9 @@ https://www.sqlite.org/index.html
 https://github.com/wdonadelli/libcsrequest
 https://wdonadelli.github.io/libcsrequest/
 
-Ubuntu package
-	libsqlite3-dev
+Ubuntu 18 LTS package: libsqlite3-dev
+
+GCC compilation: gcc -c libcsrequest.c -l sqlite3
 
 -------------------------------------------------------------------------------
 MIT License
@@ -245,17 +246,14 @@ SOFTWARE.
 		OBJECT.msg  = malloc (2 * sizeof (char));							\
 		strcpy(OBJECT.file, FILE);												\
 		strcpy(OBJECT.msg, "");													\
-		OBJECT.error = 0;															\
-		OBJECT.data  = NULL;														\
-		\
-		\
+		OBJECT.error  = 0;														\
+		OBJECT.row    = 0;														\
+		OBJECT.len    = 0;														\
+		OBJECT.data   = NULL;													\
 		OBJECT.col    = NULL;													\
 		OBJECT.val    = NULL;													\
 		OBJECT.reader = NULL;													\
-		OBJECT.row    = 0;														\
-		OBJECT.len    = 0;														\
-		\
-		\
+																						\
 		__CSR_SQL__(OBJECT);														\
 		__CSR_INSERT__(OBJECT);													\
 		__CSR_UPDATE__(OBJECT);													\
@@ -263,11 +261,7 @@ SOFTWARE.
 		__CSR_SELECT__(OBJECT);													\
 		__CSR_ADD__(OBJECT);														\
 		__CSR_CLEAR__(OBJECT);													\
-		\
-		\
 		__CSR_FETCH__(OBJECT);													\
-		\
-		\
 
 
 #endif
