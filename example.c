@@ -1,6 +1,6 @@
 #include "libcsrequest.h"
 
-void pquery(csrQuery x);
+void pquery(csrObject x);
 
 
 int main(int argc, char *argv[]) {
@@ -9,25 +9,37 @@ int main(int argc, char *argv[]) {
 
 	new_csr(db, "example.db");
 
-	if (!db.sql(sql)) {
-		printf("Erro: %s\n\n", db.msg);
-	}
+	
 
-	if (!db.add("col1", "valor 1", 0)) {printf("Erro no add");}
-	if (!db.add("col2", "2", 0)) {printf("Erro no add");}
+	//if (!db.sql(sql)) {
+	//	printf("Erro: %s\n\n", db.msg);
+	//}
 
-	if (!db.insert("tabela")) {
-		printf("Erro: %s\n\n", db.msg);
-	}
+	//db.fetch("loko");
 
-	if (!db.select("tabela", pquery)) {
-		printf("Erro: %s\n\n", db.msg);
-	}
+	if (!db.add("col1", "adocica meu ''amor'' adocia", 0)) {printf("Erro no add");}
+	//if (!db.add("col2", "2", 0)) {printf("Erro no add");}
+
+//	if (!db.insert("tabela")) {
+	//	printf("Erro: %s\n\n", db.msg);
+//	}
+
+	//if (!db.select("tabela", pquery)) {
+		//printf("Erro: %s\n\n", db.msg);
+//	}
 }
 
 
-void pquery(csrQuery x)
+void pquery(csrObject x)
 {
+	printf(
+		"row: %d\nlen: %d\n%s: %s\n%s: %s\n------\n",
+		x.row,
+		x.len,
+		"col1",
+		x.fetch("col1"),
+		"col2",
+		x.fetch("col2")
+	);
 	
-	printf("col1: %s\ncol2: %s\n\n", x.get("col1"), x.get("col2"));
 }

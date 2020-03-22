@@ -1,10 +1,17 @@
 /*-----------------------------------------------------------------------------
-Library CSrequest (v1.0.0)
+Library CSrequest (v1.0.0) <wdonadelli@gmail.com>
 
 This is a library written in C language designed to simplify requests to the
-SQLite database.
-(see https://www.sqlite.org/index.html)
+SQLite database. (see https://www.sqlite.org/index.html)
 
+The library is hosted at https://github.com/wdonadelli/libcsrequest and the manual
+at https://wdonadelli.github.io/libcsrequest/.
+
+
+Ubuntu package
+	libsqlite3-dev
+
+-------------------------------------------------------------------------------
 MIT License
 
 Copyright (c) 2020 Willian Donadelli
@@ -26,14 +33,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-Ubuntu package
-	libsqlite3-dev
-
-The library is hosted at https://github.com/wdonadelli/libcsrequest and the manual
-at https://wdonadelli.github.io/libcsrequest/.
-
-Willian Donadelli <wdonadelli@gmail.com>
 -----------------------------------------------------------------------------*/
 
 #ifndef LIBRARY_CS_REQUEST_H
@@ -65,38 +64,32 @@ Willian Donadelli <wdonadelli@gmail.com>
 		struct csrData *next;  /* próximo registro */
 	} csrData;
 
-
-/*-----------------------------------------------------------------------------
-	Estrutura das pesquisas
------------------------------------------------------------------------------*/
-	typedef struct csrQuery
-	{
-		char **col;     /* guarda o array com nomes das colunas */
-		char **val;     /* guarda o array com valores das colunas */
-		int len;        /* guarda a quantidade de colunas */
-		char *(*get)(); /* retorna o valor da coluna (ver método sql) */
-	} csrQuery;
-
-
 /*-----------------------------------------------------------------------------
 	Estrutura do objeto
 -----------------------------------------------------------------------------*/
 	typedef struct
 	{
 		/*-- Métodos --*/
-		int (*sql)();    /* executa uma instrução SQL */
-		int (*insert)(); /* constrói uma instrução INSERT (ver método add) */
-		int (*update)(); /* constrói uma instrução UPDATE (ver método add) */
-		int (*delete)(); /* constrói uma instrução DELETE (ver método add) */
-		int (*select)(); /* constrói uma instrução SELECT (ver método add) */
-		int (*add)();    /* registra informações para contrutores acima */
-		int (*clear)();  /* apaga registros (ver método add) */
+		int (*sql)();		/* executa uma instrução SQL */
+		int (*insert)();	/* constrói uma instrução INSERT (ver método add) */
+		int (*update)();	/* constrói uma instrução UPDATE (ver método add) */
+		int (*delete)();	/* constrói uma instrução DELETE (ver método add) */
+		int (*select)();	/* constrói uma instrução SELECT (ver método add) */
+		int (*add)();		/* registra informações para contrutores acima */
+		int (*clear)();	/* apaga registros (ver método add) */
+		char *(*fetch)();	/* retorna o valor da coluna (ver método sql) */
+		void (*reader)();	/* guarda a função de pesquisa */
 		
 		/*-- Atributos --*/
-		char *file;            /* caminho para o banco de dados */
-		unsigned int error: 1; /* registra erro na última operação */
-		char *msg;             /* registra mensagem de erro da última operação */
-		csrData *data;         /* lista de registros */
+		char *file;					/* caminho para o banco de dados */
+		unsigned int error: 1;	/* registra erro na última operação */
+		char *msg;					/* registra mensagem de erro da última operação */
+		unsigned long int row;	/* guarda o número da linha */
+		unsigned int len;			/* guarda o número de colunas */
+		char **col;					/* guarda o array com nomes das colunas */
+		char **val;					/* guarda o array com valores das colunas */
+		csrData *data;				/* guarda a estrutura de registros */
+		
 	} csrObject;
 	
 /*-----------------------------------------------------------------------------
@@ -214,10 +207,38 @@ Willian Donadelli <wdonadelli@gmail.com>
 		}												\
 		SELF.clear = __csr_clear__##SELF;	\
 
+
+
+/*-----------------------------------------------------------------------------
+	__csr_clear__ () limpa os dados adicionados pelo método add
+	Retorna 1 no caso de sucesso e 0 no caso de insucesso
+-----------------------------------------------------------------------------*/
+	int __csr_clear__ (csrObject *self);
+
+	#define __CSR_CLEAR__(SELF)				\
+		int __csr_clear__##SELF ()				\
+		{												\
+			return __csr_clear__(&SELF);		\
+		}												\
+		SELF.clear = __csr_clear__##SELF;	\
+
+/*-----------------------------------------------------------------------------
+	__csr_fetch__ () retorna a string com o valor da coluna na instrução SELECT
+	Retorna NULL se a coluna é nula ou não foi encontrada
+-----------------------------------------------------------------------------*/
+	char *__csr_fetch__ (csrObject *self, char *col);
+
+	#define __CSR_FETCH__(SELF)					\
+		char *__csr_fetch__##SELF (char *col)	\
+		{													\
+			return __csr_fetch__(&SELF, col);	\
+		}													\
+		SELF.fetch = __csr_fetch__##SELF;		\
+
 /*-----------------------------------------------------------------------------
 	new_csr () construtor da estrutura
 -----------------------------------------------------------------------------*/
-	#define new_csr(OBJECT, FILE)										\
+	#define new_csr(OBJECT, FILE)												\
 																						\
 		csrObject OBJECT;															\
 		OBJECT.file = malloc ((strlen(FILE) + 1) * sizeof (char));	\
@@ -226,6 +247,15 @@ Willian Donadelli <wdonadelli@gmail.com>
 		strcpy(OBJECT.msg, "");													\
 		OBJECT.error = 0;															\
 		OBJECT.data  = NULL;														\
+		\
+		\
+		OBJECT.col    = NULL;													\
+		OBJECT.val    = NULL;													\
+		OBJECT.reader = NULL;													\
+		OBJECT.row    = 0;														\
+		OBJECT.len    = 0;														\
+		\
+		\
 		__CSR_SQL__(OBJECT);														\
 		__CSR_INSERT__(OBJECT);													\
 		__CSR_UPDATE__(OBJECT);													\
@@ -233,6 +263,11 @@ Willian Donadelli <wdonadelli@gmail.com>
 		__CSR_SELECT__(OBJECT);													\
 		__CSR_ADD__(OBJECT);														\
 		__CSR_CLEAR__(OBJECT);													\
+		\
+		\
+		__CSR_FETCH__(OBJECT);													\
+		\
+		\
 
 
 #endif

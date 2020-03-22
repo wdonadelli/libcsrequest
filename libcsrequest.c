@@ -5,7 +5,7 @@
 
 #define CSR_INFO(msg, name) printf(CSR_MSG, 34, "INFO", __LINE__, name, msg)
 #define CSR_WARN(msg, name) printf(CSR_MSG, 33, "WARN", __LINE__, name, msg)
-#define CSR_ERROR(msg, name) printf(CSR_MSG, 31, "ERROR", __LINE__, name, msg)
+#define CSR_ERROR(msg, name) fprintf(stderr, CSR_MSG, 31, "ERROR", __LINE__, name, msg)
 
 /*---------------------------------------------------------------------------*/
 
@@ -46,69 +46,30 @@ static char *csr_cat(int len, ...)
 
 /*...........................................................................*/
 
-static char *__get__ (csrQuery self, char *col)
-{
-	/* variáveis locais */
-	int i;
-
-	/* looping para encontrar coluna */
-	for(i = 0; i < self.len; i++){
-		if (self.col[i] == col) {
-			return self.val[i] == NULL ? "NULL" : self.val[i];
-		}
-	}
-
-	return NULL;
-}
-
-void (*QUERY)();
-
 static int callback(void *data, int len, char **val, char **col)
 /* função a ser acionada durante pesquisa */
 {
-	/* variáveis locais */
-	csrQuery arg;
+	/* variáveis locais: obtendo self */
+	csrObject *self = (csrObject*)data;
 	
-
-	/* definindo variáveis locais */ //FIXME não está copiando os arrays
-	arg.len = len;
-	arg.col = malloc (sizeof(col));
-	arg.col = col;
-	arg.val = malloc (sizeof(val));
-	arg.val = val;
-
-	/* construindo método get local */
-	char *__localGet__(char *col)
-	{
-		return __get__(arg, col);
+	/* verificando reader */
+	if (self->reader == NULL) {
+		CSR_WARN("The \"reader\" function is mandatory for queries.", "sql(char *query, void (*reader)())");
+		return 1;
 	}
-	arg.get = __localGet__;
-		
-	/* devolvendo função */
-	if (QUERY != NULL) {QUERY(arg);}
 	
-	/* liberando memória */
-	//free(arg.col);
-	//free(arg.val);
+	/* definindo valores */
+	self->row++;
+	self->len = len;
+	self->col = col;
+	self->val = val;
+	
+	/* executando função */
+	self->reader(*self);
 
 	/* retorna 0 se houve sucesso */
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /*...........................................................................*/
 
@@ -122,8 +83,14 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	char *error = NULL;
 	
 	/* valores iniciais */
-	self->error = 0;
-	self->msg = csr_cat(0);
+	self->error  = 0;
+	self->msg    = csr_cat(0);
+	self->col    = NULL;
+	self->val    = NULL;
+	self->row    = 0;
+	self->len    = 0;
+	self->reader = reader;													\
+
 
 	/* abrindo/criando banco de dados */
 	open = sqlite3_open(self->file, &db);
@@ -135,11 +102,17 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 		return 0;
 	}
 	
-	QUERY = reader;
-
 	/* executando ação */	
-	exec = sqlite3_exec(db, query, callback, NULL, &error);
+	exec = sqlite3_exec(db, query, callback, self, &error);
 	
+	/* redefinindo valores */
+	self->col    = NULL;
+	self->val    = NULL;
+	self->row    = 0;
+	self->len    = 0;
+	self->reader = NULL;	
+	self->clear();
+
 	/* verificando sucesso no procedimento anterior */
 	if (exec != SQLITE_OK) {
 		self->error = 1;	
@@ -149,25 +122,11 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 		return 0;
 	}
 
-	/* limpando memória e fechando banco */
-	self->clear();
+	/* fechando o banco de dados */
 	sqlite3_close(db);
 
 	return 1;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /*...........................................................................*/
 
@@ -411,6 +370,11 @@ int __csr_add__ (csrObject *self, char *column, char *value, int where)
 		return 0;
 	}
 
+	/* informar sobre a existência de apóstrofo */
+	if (strstr(value, "'") != NULL) {
+		CSR_INFO("Single quotes must be used in double (''Hi'') in SQLite.", "add(char *column, char *value)");
+	}
+
 	/* definindo variáveis */
 	data = malloc (sizeof(csrData));
 	if (data == NULL) {
@@ -419,7 +383,7 @@ int __csr_add__ (csrObject *self, char *column, char *value, int where)
 	}
 	data->where = where == 1 ? 1 : 0;
 	data->col   = csr_cat(1, column);
-	data->val   = value == NULL ? csr_cat(1, "NULL") : csr_cat(3, "'", value, "'");
+	data->val   = value == NULL ? NULL : csr_cat(3, "'", value, "'");
 
 	/* data->next */
 	data->next = self->data;
@@ -450,4 +414,33 @@ int __csr_clear__ (csrObject *self)
 	self->data = NULL;
 
 	return 1;
+}
+
+/*...........................................................................*/
+
+char *__csr_fetch__ (csrObject *self, char *col)
+{
+	/* variáveis locais */
+	int i;
+
+	/* verificando e redefinindo valores se necessário */
+	if (self->col == NULL || self->val == NULL) {
+		self->col    = NULL;
+		self->val    = NULL;
+		self->row    = 0;
+		self->len    = 0;
+		self->reader = NULL;
+		CSR_WARN("Use the method only in queries (SELECT statements)", "fetch(char *col)");
+		return NULL;
+	}
+
+	/* looping para encontrar coluna */
+	for(i = 0; i < self->len; i++){
+		if (strcmp(self->col[i], col) == 0) {
+			return self->val[i];
+		}
+	}
+
+	/* se nada for encontrado */
+	return NULL;
 }

@@ -13,8 +13,10 @@ example: libcsrequest.o example.o
 	gcc -o example objects/example.o objects/libcsrequest.o -l sqlite3
 	@ clear
 	@ echo "> Running executable:"
+	@ echo "================================================================================"
 	./example
-	@ echo "\n> Finished."
+	@ echo "================================================================================"
+	@ echo "> Finished."
 
 libcsrequest.o:
 	@ echo "> Compiling libcsrequest.c:"
