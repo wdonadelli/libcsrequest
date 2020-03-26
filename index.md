@@ -4,6 +4,19 @@ SCR is a library written in C language designed to simplify requests with an [SQ
 
 The interaction with the database occurs through a structure (type) that points to attributes and methods responsible for the requests.
 
+To import the library use the following header:
+
+```c
+#include "libcsrequest.h"
+```
+
+To compile the source code it is necessary to use the `-l sqlite3` flag.
+
+```sh
+#GCC example:
+gcc -c libcsrequest.c -l sqlite3
+```
+
 Next, the construction and use of the tool will be demonstrated.
 
 ## The builder
