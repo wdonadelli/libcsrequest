@@ -4,7 +4,7 @@ Library CSRequest (v1.0.0) <wdonadelli@gmail.com>
 This is a library written in C language designed to simplify requests to the
 SQLite database.
 
-https://www.sqlite.org/index.html
+https://www.sqlite.org/
 https://github.com/wdonadelli/libcsrequest
 https://wdonadelli.github.io/libcsrequest/
 
@@ -92,7 +92,14 @@ SOFTWARE.
 		csrData *data;         /* guarda a estrutura de registros */
 		
 	} csrObject;
-	
+
+/*-----------------------------------------------------------------------------
+	csr_empty verifica se a string é vazia
+	str: string a ser avaliada
+	Retorna 1 no caso de string vazia 0 se não vazia
+-----------------------------------------------------------------------------*/
+	int csr_empty(char *str);
+
 /*-----------------------------------------------------------------------------
 	Protótipos
 
@@ -237,29 +244,34 @@ SOFTWARE.
 /*-----------------------------------------------------------------------------
 	new_csr () construtor da estrutura
 -----------------------------------------------------------------------------*/
-	#define new_csr(OBJECT, FILE)                                 \
-                                                                 \
-		csrObject OBJECT;                                          \
-		OBJECT.file = malloc ((strlen(FILE) + 1) * sizeof (char)); \
-		OBJECT.msg  = malloc (2 * sizeof (char));                  \
-		strcpy(OBJECT.file, FILE);                                 \
-		strcpy(OBJECT.msg, "");                                    \
-		OBJECT.error  = 0;                                         \
-		OBJECT.row    = 0;                                         \
-		OBJECT.len    = 0;                                         \
-		OBJECT.data   = NULL;                                      \
-		OBJECT.col    = NULL;                                      \
-		OBJECT.val    = NULL;                                      \
-		OBJECT.reader = NULL;                                      \
-                                                                 \
-		__CSR_SQL__(OBJECT);                                       \
-		__CSR_INSERT__(OBJECT);                                    \
-		__CSR_UPDATE__(OBJECT);                                    \
-		__CSR_DELETE__(OBJECT);                                    \
-		__CSR_SELECT__(OBJECT);                                    \
-		__CSR_ADD__(OBJECT);                                       \
-		__CSR_CLEAR__(OBJECT);                                     \
-		__CSR_FETCH__(OBJECT);                                     \
+	#define new_csr(OBJECT, FILE)                                    \
+                                                                    \
+		csrObject OBJECT;                                             \
+		if (csr_empty(FILE) == 1) {                                   \
+			OBJECT.file = malloc ((8 + 1) * sizeof (char));            \
+			strcpy(OBJECT.file, ":memory:");                           \
+		} else {                                                      \
+			OBJECT.file = malloc ((strlen(FILE) + 1) * sizeof (char)); \
+			strcpy(OBJECT.file, FILE);                                 \
+		}                                                             \
+		OBJECT.msg  = malloc (2 * sizeof (char));                     \
+		strcpy(OBJECT.msg, "");                                       \
+		OBJECT.error  = 0;                                            \
+		OBJECT.row    = 0;                                            \
+		OBJECT.len    = 0;                                            \
+		OBJECT.data   = NULL;                                         \
+		OBJECT.col    = NULL;                                         \
+		OBJECT.val    = NULL;                                         \
+		OBJECT.reader = NULL;                                         \
+                                                                    \
+		__CSR_SQL__(OBJECT);                                          \
+		__CSR_INSERT__(OBJECT);                                       \
+		__CSR_UPDATE__(OBJECT);                                       \
+		__CSR_DELETE__(OBJECT);                                       \
+		__CSR_SELECT__(OBJECT);                                       \
+		__CSR_ADD__(OBJECT);                                          \
+		__CSR_CLEAR__(OBJECT);                                        \
+		__CSR_FETCH__(OBJECT);                                        \
 
 
 #endif

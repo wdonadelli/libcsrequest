@@ -1,76 +1,49 @@
-# GTK User Interface Builder Library - UIGTK
+# SQLite Request Library - CSR
 
-UIGTK is a C-language written library designed to simplify the creation of the graphical environment with the GTK toolkit from the [GtkBuilder](https://developer.gnome.org/gtk3/stable/GtkBuilder.html) object.
+SCR is a library written in C language designed to simplify requests with an [SQLite](https://www.sqlite.org/) database.
 
-To help understand the library, the following example interface will be used:
+The interaction with the database occurs through a structure (type) that points to attributes and methods responsible for the requests.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<interface>
-	<object id="window" class="GtkWindow">
-		<property name="title">-- LIBUIGTK --</property>
-		<property name="visible">True</property>
-		<signal name="destroy" handler="gtk_main_quit" />
-		<child>
-			<object class="GtkBox" id="box">
-				<property name="visible">True</property>
-				<property name="orientation">vertical</property>
-				<property name="expand">True</property>
-				<child>
-					<object class="GtkButton" id="btn1">
-						<property name="visible">True</property>
-						<property name="label">Hello</property>
-						<signal name="clicked" handler="hello" />
-					</object>
-					<packing>
-						<property name="expand">True</property>
-						<property name="fill">True</property>
-					</packing>
-				</child>
-				<child>
-					<object class="GtkButton" id="btn2">
-						<property name="visible">True</property>
-						<property name="label">Bye</property>
-						<signal name="clicked" handler="bye" />
-					</object>
-					<packing>
-						<property name="expand">True</property>
-						<property name="fill">True</property>
-					</packing>
-				</child>
-			</object>
-		</child>
-	</object>
-</interface>
-```
+Next, the construction and use of the tool will be demonstrated.
 
-This results in the following appearance:
+## The builder
 
-![Interface image](images/screen1.png)
+The construction of the structure is done from the macro `new_csr`:
 
-The interface file name will be set to "example.ui".
-
-## Interface construction
-
-The construction is divided into three phases:
-
-- Initialize the library indicated an interface file (.ui);
-- Connect the interface signals to their respective handlers; and
-- Start the main loop.
-
-### Interface initialization
-
-To initialize the interface, the `uigtk_unit()` function must be used, whose characteristics are described below:
 
 ```c
-void uigtk_init(char *file);
+#define new_csr(OBJECT, FILE);
 ```
 
-#### Parameters
+### Parameters
 
 |Name|Description|
 |:--|:--|
-|file|Interface file path|
+|OBJECT|Name of the variable for assigning the structure.|
+|FILE|Path to the database.|
+
+It is not necessary to define the type of the variable in advance, simply inform its name. The type to be assigned is called `csrObject`.
+
+If the path to the database file is null or empty, the value "[:memory:](https://sqlite.org/c3ref/open.html)" will be assigned.
+
+### Example
+
+```c
+new_csr(db, "example.db");
+```
+
+`db` will be the variable that will receive the structure (csrObject type) to interact with the database called "example.db".
+
+## Attributes
+
+
+
+
+
+
+
+
+
 
 #### Returns
 

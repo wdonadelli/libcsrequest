@@ -8,6 +8,23 @@
 #define CSR_ERROR(msg, name) fprintf(stderr, CSR_MSG, 31, "ERROR", __LINE__, name, msg)
 
 /*---------------------------------------------------------------------------*/
+int csr_empty(char *str)
+{
+	/* checando se string é nula */
+	if (str == NULL) {
+		return 1;
+	}
+
+	/* varrendo todos os elementos da string */
+	for (register int i = 0; i < strlen(str); i++) {
+		if (str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
+			return 0;
+		}
+	}
+	
+	return 1;
+}
+/*---------------------------------------------------------------------------*/
 
 static char *csr_cat(int len, ...)
 /* concatena diversas strings ao mesmo tempo */

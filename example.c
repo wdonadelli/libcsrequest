@@ -11,13 +11,13 @@ int main(int argc, char *argv[]) {
 
 	
 
-	//if (!db.sql(sql)) {
-	//	printf("Erro: %s\n\n", db.msg);
-	//}
+	if (!db.sql(sql)) {
+		printf("Erro: %s\n\n", db.msg);
+	}
 
 	//db.fetch("loko");
 
-	if (!db.add("col1", "adocica meu ''amor'' adocia", 0)) {printf("Erro no add");}
+	//if (!db.add("col1", "adocica meu ''amor'' adocia", 0)) {printf("Erro no add");}
 	//if (!db.add("col2", "2", 0)) {printf("Erro no add");}
 
 //	if (!db.insert("tabela")) {
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 void pquery(csrObject x)
 {
 	printf(
-		"row: %d\nlen: %d\n%s: %s\n%s: %s\n------\n",
+		"row: %ld\nlen: %d\n%s: %s\n%s: %s\n------\n",
 		x.row,
 		x.len,
 		"col1",
