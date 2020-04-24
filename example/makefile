@@ -1,38 +1,31 @@
-#Path to the library
-LIB=../libcsrequest
-#LIB=source/libcsrequest
-
-#Path to example
-MAIN=../example
-#MAIN=source/example
-
 all: folder example
 
 example: libcsrequest.o example.o
-	@ echo "> Generating executable:"
-	gcc -o example objects/example.o objects/libcsrequest.o -l sqlite3
-	@ clear
-	@ echo "> Running executable:"
-	@ echo "================================================================================"
+	@ echo "-> example"
+	gcc -Wall -o example objects/example.o objects/libcsrequest.o -l sqlite3
+	@ echo "--------------------------------------------------------------------"
 	./example
-	@ echo "================================================================================"
-	@ echo "> Finished."
+	@ echo "--------------------------------------------------------------------"
+	@ echo "Done."
 
 libcsrequest.o:
-	@ echo "> Compiling libcsrequest.c:"
-	gcc -o objects/libcsrequest.o -c $(LIB).c -l sqlite3
+	@ echo "-> libcsrequest.c > libcrequest.o"
+	gcc -Wall -o objects/libcsrequest.o -c source/libcsrequest.c -l sqlite3
 
 example.o:
-	@ echo "> Compiling example.c:"
-	gcc -o objects/example.o -c $(MAIN).c -l sqlite3
+	@ echo "-> example.c > example.o"
+	gcc -Wall -o objects/example.o -c source/example.c -l sqlite3
 
 folder:
-	@ echo "> Creating objects folder..."
+	@ clear
+	@ echo "-> Folders"
+	@ cp "../libcsrequest.c" "source/"
+	@ cp "../libcsrequest.h" "source/"
 	@ mkdir -p objects
 
 clean:
-	@ echo "> Cleaning project..."
+	@ echo "-> Cleaning project"
 	@ rm -f example
 	@ rm -rf objects/*.o
 	@ rm -d objects
-	@ echo "> Finished."
+	@ echo "Done"
