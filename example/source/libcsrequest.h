@@ -80,8 +80,6 @@ SOFTWARE.
 		int (*clear)();   /* apaga registros (ver método add) */
 		char *(*fetch)(); /* retorna o valor da coluna (ver método sql) */
 		void (*reader)(); /* guarda a função de pesquisa */
-		int (*path)();    /* define o atributo file */
-		int (*_msg)();    /* define o atributo msg (método interno) */
 		
 		/*-- Atributos --*/
 		char *file;            /* caminho para o banco de dados */
@@ -94,36 +92,6 @@ SOFTWARE.
 		csrData *data;         /* guarda a estrutura de registros */
 		
 	} csrObject;
-
-
-/*-----------------------------------------------------------------------------
-	Macros (mensagens de erros)
------------------------------------------------------------------------------*/
-	#define CSR_MSG "\n\033[1;%dm%s[%d] \033[1;36mlibcsrequest > %s\033[0m:\n\t\"%s\"\n\n"
-	#define CSR_INFO(msg, name) printf(CSR_MSG, 34, "INFO", __LINE__, name, msg)
-	#define CSR_WARN(msg, name) printf(CSR_MSG, 33, "WARN", __LINE__, name, msg)
-	#define CSR_ERROR(msg, name) fprintf(stderr, CSR_MSG, 31, "ERROR", __LINE__, name, msg)
-
-/*-----------------------------------------------------------------------------
-	CSR_MEMRR checa se houve erro na alocação de memória
-	VAR: variável a checar
-	Termina a aplicação se houver erro de alocação
------------------------------------------------------------------------------*/
-	#define CSR_MEMRR(VAR)                           \
-		if (VAR == NULL) {                            \
-			CSR_ERROR("Memory allocation error.", ""); \
-			exit(1);                                   \
-		}                                             \
-
-/*-----------------------------------------------------------------------------
-	CSR_SET_STR define uma string numa variável (ponteiro)
-	VAR: variável a receber a string
-	STR: valor a ser apropriado na variável
-	Termina a aplicação se houver erro de alocação
------------------------------------------------------------------------------*/
-	#define CSR_SET_STR(VAR, STR)                                \
-		VAR = (char *) malloc ((strlen(STR) + 1) * sizeof(char)); \
-		CSR_MEMRR(VAR)                                            \
 
 /*-----------------------------------------------------------------------------
 	Protótipos
@@ -267,63 +235,28 @@ SOFTWARE.
 		SELF.fetch = __csr_fetch__##SELF;     \
 
 /*-----------------------------------------------------------------------------
-	__csr_path__ () define o valor do atributo file
-	file: string contendo o caminho para o banco de dados
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
------------------------------------------------------------------------------*/
-	int __csr_path__ (csrObject *self, char *file);
-
-	#define __CSR_PATH__(SELF)              \
-		int __csr_path__##SELF (char *file)  \
-		{                                    \
-			return __csr_path__(&SELF, file); \
-		}                                    \
-		SELF.path = __csr_path__##SELF;      \
-
-/*-----------------------------------------------------------------------------
-	__csr__msg__ () define o valor do atributo msg
-	msg: string contendo a mensagem
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
------------------------------------------------------------------------------*/
-	int __csr__msg__ (csrObject *self, char *msg);
-
-	#define __CSR__MSG__(SELF)             \
-		int __csr__msg__##SELF (char *msg)  \
-		{                                   \
-			return __csr__msg__(&SELF, msg); \
-		}                                   \
-		SELF._msg = __csr__msg__##SELF;     \
-
-/*-----------------------------------------------------------------------------
 	new_csr () construtor da estrutura
 -----------------------------------------------------------------------------*/
-	#define new_csr(OBJECT, FILE)      \
-                                      \
-		csrObject OBJECT;		           \
-		CSR_SET_STR(OBJECT.file, FILE); \
-		OBJECT.msg    = NULL;            \
-		OBJECT.error  = 0;              \
-		OBJECT.row    = 0;              \
-		OBJECT.len    = 0;              \
-		OBJECT.data   = NULL;           \
-		OBJECT.col    = NULL;           \
-		OBJECT.val    = NULL;           \
-		OBJECT.reader = NULL;           \
-                                      \
-		__CSR_SQL__(OBJECT);            \
-		__CSR_INSERT__(OBJECT);         \
-		__CSR_UPDATE__(OBJECT);         \
-		__CSR_DELETE__(OBJECT);         \
-		__CSR_SELECT__(OBJECT);         \
-		__CSR_ADD__(OBJECT);            \
-		__CSR_CLEAR__(OBJECT);          \
-		__CSR_FETCH__(OBJECT);          \
-		__CSR_PATH__(OBJECT);           \
-		__CSR__MSG__(OBJECT);           \
-                                      \
-		OBJECT.path(FILE);              \
-		OBJECT._msg("");                \
-		
-
+	#define new_csr(OBJECT, FILE) \
+                                 \
+		csrObject OBJECT;		      \
+		OBJECT.file   = FILE;      \
+		OBJECT.msg    = "";        \
+		OBJECT.error  = 0;         \
+		OBJECT.row    = 0;         \
+		OBJECT.len    = 0;         \
+		OBJECT.data   = NULL;      \
+		OBJECT.col    = NULL;      \
+		OBJECT.val    = NULL;      \
+		OBJECT.reader = NULL;      \
+                                 \
+		__CSR_SQL__(OBJECT);       \
+		__CSR_INSERT__(OBJECT);    \
+		__CSR_UPDATE__(OBJECT);    \
+		__CSR_DELETE__(OBJECT);    \
+		__CSR_SELECT__(OBJECT);    \
+		__CSR_ADD__(OBJECT);       \
+		__CSR_CLEAR__(OBJECT);     \
+		__CSR_FETCH__(OBJECT);     \
 
 #endif
