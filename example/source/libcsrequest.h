@@ -70,7 +70,7 @@ SOFTWARE.
 -----------------------------------------------------------------------------*/
 	typedef struct
 	{
-		/*-- Métodos --*/
+		/*-- Métodos acessíveis ao usuário --*/
 		int (*sql)();     /* executa uma instrução SQL */
 		int (*insert)();  /* constrói uma instrução INSERT (ver método add) */
 		int (*update)();  /* constrói uma instrução UPDATE (ver método add) */
@@ -79,12 +79,16 @@ SOFTWARE.
 		int (*add)();     /* registra informações para contrutores acima */
 		int (*clear)();   /* apaga registros (ver método add) */
 		char *(*fetch)(); /* retorna o valor da coluna (ver método sql) */
-		void (*reader)(); /* guarda a função de pesquisa */
+		int (*status)();  /* retorna o status da última solicitação */
+		char *(*info)();  /* retorna a mensagem da última solicitação */
+		void (*debug)();  /* liga/desliga a depuração */
 		
-		/*-- Atributos --*/
+		/*-- Métodos/Atributos inacessíveis ao usuário --*/
+		void (*reader)();      /* guarda a função de pesquisa */
 		char *file;            /* caminho para o banco de dados */
-		unsigned int error: 1; /* registra erro na última operação */
-		char *msg;             /* registra mensagem de erro da última operação */
+		int print;             /* registra o acionamento da depuração */
+		int code;              /* registra o retorno da última operação */
+		char *message;         /* registra mensagem de erro da última operação */
 		unsigned long int row; /* guarda o número da linha */
 		unsigned int len;      /* guarda o número de colunas */
 		char **col;            /* guarda o array com nomes das colunas */
@@ -99,14 +103,19 @@ SOFTWARE.
 	Os protótipos abaixo não devem ser utilizadas para manipulação da
 	biblioteca, sua utilidade se destina a criação do métodos secundários da
 	ferramenta principal.
-	Todos os protótipos retornam 1 (sucesso) ou 0 (erro)
+	Retornos dos protótipos:
+		CSR_OK    se não ocorreu erro na requisição SQL ou nos métodos
+		CSR_FAIL  se ocorreu erro na requisição SQL
+		CSR_ERROR se ocorreu erro nos parâmetros do método 
 -----------------------------------------------------------------------------*/
+	#define CSR_OK   0
+	#define CSR_FAIL 1
+	#define CSR_ERR -1
 
 /*-----------------------------------------------------------------------------
 	__csr_sql__ () executa uma instrução SQL
 	query:  string contendo a instrução SQL
 	reader: função a executar durante a pesquisa (opcional)
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_sql__ (csrObject *self, char *query, void (*reader)());
 
@@ -121,7 +130,6 @@ SOFTWARE.
 	__csr_insert__ () constrói uma instrução INSERT e a executa a partir das
 	informações de registros adicionados pelo método add()
 	table: string contendo o nome da tabela
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_insert__ (csrObject *self, char *table);
 
@@ -136,7 +144,6 @@ SOFTWARE.
 	__csr_update__ () constrói uma instrução UPDATE e a executa a partir das
 	informações de registros adicionados pelo método add()
 	table: string contendo o nome da tabela
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_update__ (csrObject *self, char *table);
 
@@ -151,7 +158,6 @@ SOFTWARE.
 	__csr_delete__ () constrói uma instrução DELETE e a executa a partir das
 	informações de registros adicionados pelo método add()
 	table: string contendo o nome da tabela
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_delete__ (csrObject *self, char *table);
 
@@ -167,7 +173,6 @@ SOFTWARE.
 	informações de registros adicionados pelo método add()
 	table: string contendo o nome da tabela
 	reader: função a executar durante a pesquisa (opcional)
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_select__ (csrObject *self, char *table, void (*reader)());
 
@@ -179,12 +184,10 @@ SOFTWARE.
 		SELF.select = __csr_select__##SELF;                      \
 
 /*-----------------------------------------------------------------------------
-	__csr_add__ () adiciona registros para execução dos métodos construtores de
-	instruções SQL
+	__csr_add__ () adiciona/altera registros para execução dos métodos
+	construtores de instruções SQL
 	column: string contendo o nome da coluna
 	value:  string contendo o valor da coluna
-	where:  se 1, informado como critério de pesquisa (update/delete/select)
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_add__ (csrObject *self, char *column, char *value, int where);
 
@@ -197,20 +200,6 @@ SOFTWARE.
 
 /*-----------------------------------------------------------------------------
 	__csr_clear__ () limpa os dados adicionados pelo método add
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
------------------------------------------------------------------------------*/
-	int __csr_clear__ (csrObject *self);
-
-	#define __CSR_CLEAR__(SELF)          \
-		int __csr_clear__##SELF ()        \
-		{                                 \
-			return __csr_clear__(&SELF);   \
-		}                                 \
-		SELF.clear = __csr_clear__##SELF; \
-
-/*-----------------------------------------------------------------------------
-	__csr_clear__ () limpa os dados adicionados pelo método add
-	Retorna 1 no caso de sucesso e 0 no caso de insucesso
 -----------------------------------------------------------------------------*/
 	int __csr_clear__ (csrObject *self);
 
@@ -223,7 +212,8 @@ SOFTWARE.
 
 /*-----------------------------------------------------------------------------
 	__csr_fetch__ () retorna a string com o valor da coluna na instrução SELECT
-	Retorna NULL se a coluna é nula ou não foi encontrada
+	Obs.: Retorna NULL se a coluna é nula, não foi encontrada ou quando ocorre
+	um erro
 -----------------------------------------------------------------------------*/
 	char *__csr_fetch__ (csrObject *self, char *col);
 
@@ -235,20 +225,58 @@ SOFTWARE.
 		SELF.fetch = __csr_fetch__##SELF;     \
 
 /*-----------------------------------------------------------------------------
+	__csr_status__ () retorna o status da última solicitação
+-----------------------------------------------------------------------------*/
+	int __csr_status__ (csrObject *self);
+
+	#define __CSR_STATUS__(SELF)           \
+		int __csr_status__##SELF ()         \
+		{                                   \
+			return __csr_status__(&SELF);    \
+		}                                   \
+		SELF.status = __csr_status__##SELF; \
+
+/*-----------------------------------------------------------------------------
+	__csr_info__ () retorna a menssagem da última solicitação
+-----------------------------------------------------------------------------*/
+	char *__csr_info__ (csrObject *self);
+
+	#define __CSR_INFO__(SELF)         \
+		char *__csr_info__##SELF ()     \
+		{                               \
+			return __csr_info__(&SELF);  \
+		}                               \
+		SELF.info = __csr_info__##SELF; \
+
+/*-----------------------------------------------------------------------------
+	__csr_debug__ () liga/desliga depuração
+-----------------------------------------------------------------------------*/
+	void __csr_debug__ (csrObject *self, int val);
+
+	#define __CSR_DEBUG__(SELF)             \
+		void __csr_debug__##SELF (int val)   \
+		{                                    \
+			return __csr_debug__(&SELF, val); \
+		}                                    \
+		SELF.debug = __csr_debug__##SELF;    \
+
+
+/*-----------------------------------------------------------------------------
 	new_csr () construtor da estrutura
 -----------------------------------------------------------------------------*/
 	#define new_csr(OBJECT, FILE) \
                                  \
 		csrObject OBJECT;		      \
-		OBJECT.file   = FILE;      \
-		OBJECT.msg    = "";        \
-		OBJECT.error  = 0;         \
-		OBJECT.row    = 0;         \
-		OBJECT.len    = 0;         \
-		OBJECT.data   = NULL;      \
-		OBJECT.col    = NULL;      \
-		OBJECT.val    = NULL;      \
-		OBJECT.reader = NULL;      \
+		OBJECT.file    = FILE;     \
+		OBJECT.message = "";       \
+		OBJECT.code    = CSR_OK;   \
+		OBJECT.print   = 1;        \
+		OBJECT.row     = 0;        \
+		OBJECT.len     = 0;        \
+		OBJECT.data    = NULL;     \
+		OBJECT.col     = NULL;     \
+		OBJECT.val     = NULL;     \
+		OBJECT.reader  = NULL;     \
                                  \
 		__CSR_SQL__(OBJECT);       \
 		__CSR_INSERT__(OBJECT);    \
@@ -258,5 +286,8 @@ SOFTWARE.
 		__CSR_ADD__(OBJECT);       \
 		__CSR_CLEAR__(OBJECT);     \
 		__CSR_FETCH__(OBJECT);     \
+		__CSR_STATUS__(OBJECT);    \
+		__CSR_INFO__(OBJECT);      \
+		__CSR_DEBUG__(OBJECT);     \
 
 #endif

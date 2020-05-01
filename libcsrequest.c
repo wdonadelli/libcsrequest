@@ -4,35 +4,44 @@
 	Macros
 -----------------------------------------------------------------------------*/
 
-/* mensagem padrão */
+/* mensagem de saída padrão */
 #define CSR_MSG \
 	"\n\033[1;%dm%s[%d] \033[1;36mlibcsrequest > %s\033[0m:\n\t\"%s\"\n\n"
 
+/* mensagens de saídas (return -1 ou NULL) */
+#define CSR_SELF_DATA_NULL "Parameters not defined (see add method)."
+#define CSR_INVALID_TABLE  "Invalid 'table' argument."
+#define CSR_BROKEN_SQL     "Inadequate parameters reported (see add method)."
+
 /* mensagem informativa */
-#define CSR_INFO(msg, name) \
-	printf(CSR_MSG, 34, "INFO", __LINE__, name, msg)
+#define CSR_INFO(msg) \
+	printf(CSR_MSG, 34, "INFO", 0, csr_prototype, msg)
 
-/* mensagem de alerta */
-#define CSR_WARN(msg, name) \
-	printf(CSR_MSG, 33, "WARN", __LINE__, name, msg)
+/* mensagem de alerta (retorna -1) */
+#define CSR_WARN(msg) \
+	printf(CSR_MSG, 33, "WARN", 0, csr_prototype, msg)
 
-/* mensagem de erro */
-#define CSR_ERROR(msg, name) \
-	fprintf(stderr, CSR_MSG, 31, "ERROR", __LINE__, name, msg)
+/* mensagem de erro (para a execução) */
+#define CSR_ERROR(msg) \
+	fprintf(stderr, CSR_MSG, 31, "ERROR", __LINE__, csr_prototype, msg); \
+	exit(1)
 
 /* verifica se ocorreu erro na alocação de memória */
 #define CSR_CHECK_MEMORY(VAR) \
 	if (VAR == NULL) { \
-		CSR_ERROR("Memory allocation error!", ""); \
-		exit(1); \
+		CSR_ERROR("Memory allocation error!"); \
 	}\
 
-
 /*-----------------------------------------------------------------------------
-	Funções internas
+	Funções e variáveis internas
 -----------------------------------------------------------------------------*/
 
-static int csr_is_empty (char *str)
+/* guarda o protótipo da função executada */
+static char *csr_prototype = NULL;
+
+/*...........................................................................*/
+
+static int csr_is_empty (const char *str)
 /* Retorna 1 se a string não possui caracteres imprimíveis */
 {
 	if (str == NULL) return 1;
@@ -116,8 +125,8 @@ static char *csr_set_where (char *col, char *val)
 	where = csr_cat(
 		" WHERE ",
 		col,
-		(val == "NULL" ? " IS " : " = "),
-		(val == "NULL" ? "NULL" : val),
+		(strcmp(val, "NULL") == 0 ? " IS " : " = "),
+		(strcmp(val, "NULL") == 0 ? "NULL" : val),
 		NULL
 	);
 	return where;
@@ -125,12 +134,35 @@ static char *csr_set_where (char *col, char *val)
 
 /*...........................................................................*/
 
-static void csr_set_msg (csrObject *self, const char *msg)
-/* define o valor do atributo msg */
+static void csr_set_status (csrObject *self, int code, const char *msg)
+/* define o valor dos atributos code e message */
 {
-	self->msg = malloc((strlen(msg) + 1) * sizeof(char));
-	CSR_CHECK_MEMORY(self->msg);
-	strcpy(self->msg, msg);
+
+	/* definindo o status */
+	self->code = code == CSR_ERR || code == CSR_FAIL ? code : CSR_OK;
+
+	/* depurando */
+	if (self->print && !csr_is_empty(msg)) {
+		if (self->code == CSR_OK) {
+			CSR_INFO(msg);
+		} else {
+			CSR_WARN(msg);
+		}
+	}
+
+	/* definindo a mensagem */
+	self->message = malloc((strlen(msg == NULL ? "" : msg) + 1) * sizeof(char));
+	CSR_CHECK_MEMORY(self->message);
+	strcpy(self->message, msg == NULL ? "" : msg);
+	return;
+}
+
+/*...........................................................................*/
+
+static void csr_clear_status (csrObject *self)
+/* reinicia o status */
+{
+	csr_set_status(self, CSR_OK, "");
 	return;
 }
 
@@ -144,10 +176,7 @@ static int callback (void *data, int len, char **val, char **col)
 	
 	/* verificando reader */
 	if (self->reader == NULL) {
-		CSR_WARN(
-			"The \"reader\" function is mandatory for queries.",
-			"sql(char *query, void (*reader)())"
-		);
+		CSR_WARN("The \"reader\" function is mandatory for queries.");
 		return 1;
 	}
 	
@@ -172,14 +201,17 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 {
 	printf("---\n%s\n---\n\n", query);
 	
+	/* protótipo */
+	if (csr_prototype == NULL) {
+		csr_prototype = "sql (char *query, void (*reader)())";
+	}
+
 	/* variáveis locais */
 	sqlite3 *db;
 	int open, exec;
 	char *error = NULL;
 	
 	/* valores iniciais */
-	self->error  = 0;
-	self->msg    = "";
 	self->col    = NULL;
 	self->val    = NULL;
 	self->row    = 0;
@@ -194,10 +226,10 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 
 	/* verificando sucesso no procedimento anterior */
 	if (open != SQLITE_OK) {
-		self->error = 1;
-		csr_set_msg(self, sqlite3_errmsg(db));
-		return 1;
+		csr_set_status(self, CSR_FAIL, sqlite3_errmsg(db));
+		return self->status();
 	}
+
 	
 	/* executando ação */	
 	exec = sqlite3_exec(db, query, callback, self, &error);
@@ -208,51 +240,37 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	self->row    = 0;
 	self->len    = 0;
 	self->reader = NULL;
-	self->clear();
 
-	/* verificando sucesso no procedimento anterior */
+
+	/* verificar sucesso no procedimento anterior */
 	if (exec != SQLITE_OK) {
-		self->error = 1;	
-		csr_set_msg(self, error);
+		csr_set_status(self, CSR_FAIL, error);
+	} else {
+		self->clear();
 	}
 
-	/* fechando o banco de dados */
-	if (sqlite3_close(db) != SQLITE_OK) {
-		self->error = 1;	
-		csr_set_msg(self, error);
+	/* verificando erro ao fechar o banco de dados */
+	if (sqlite3_close(db) != SQLITE_OK && self->status() == CSR_OK) {
+		csr_set_status(self, CSR_FAIL, error);
 	}
 
 	/* liberando memória */
 	sqlite3_free(error);
 
-	return 1;
+	return self->status();
 }
 
 /*...........................................................................*/
 
 int __csr_insert__ (csrObject *self, char *table)
 {
+	/* protótipo */
+	csr_prototype = "insert (char *table)";
+
 	/* variáveis locais */
 	char *col, *val, *query;
 	int result;
 	csrData *data;
-
-	/* testando informações */
-	if (self->data == NULL) {
-		CSR_WARN(
-			"There is no data to insert (see add method).",
-			"insert(char *table)"
-		);
-		return 0;
-	}
-
-	if (!csr_is_name(table)) {
-		CSR_WARN(
-			"Invalid 'table' argument.",
-			"insert(char *table)"
-		);
-		return 0;
-	}
 
 	/* defindo valores iniciais */
 	data = malloc(sizeof(csrData));
@@ -280,21 +298,23 @@ int __csr_insert__ (csrObject *self, char *table)
 		data = data->next;
 	}
 
-	/* observando resultados */
-	if (csr_is_empty(col) || csr_is_empty(val)) {
-		CSR_WARN(
-			"There is no data to insert (see add method).",
-			"insert(char *table)"
-		);
-		return 0;
+	/* testando erros */
+	if (self->data == NULL) {
+		csr_set_status(self, CSR_ERR, CSR_SELF_DATA_NULL);
+	} else if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+	} else if (csr_is_empty(col) || csr_is_empty(val)) {
+		csr_set_status(self, CSR_ERR, CSR_BROKEN_SQL);
+	} else {
+		csr_clear_status(self);
 	}
+	if (self->status() != CSR_OK) return self->status();
+	
 
 	/* construindo query */
 	query = csr_cat(
 		"INSERT INTO ", table, " (", col, ") VALUES (", val, ");", NULL
 	);
-
-	printf("%s\n\n", query);
 
 	/* executando query */
 	result = self->sql(query, NULL);
@@ -309,6 +329,9 @@ int __csr_insert__ (csrObject *self, char *table)
 
 int __csr_update__ (csrObject *self, char *table)
 {
+	/* prototype */
+	csr_prototype = "update(char *table)";
+
 	/* variáveis locais */
 	char *set, *where, *query;
 	int result;
@@ -316,18 +339,12 @@ int __csr_update__ (csrObject *self, char *table)
 
 	/* testando informações */
 	if (self->data == NULL) {
-		CSR_WARN(
-			"There is no data to update (see add method).",
-			"update(char *table)"
-		);
+		CSR_WARN("There is no data to update (see add method).");
 		return 0;
 	}
 
 	if (!csr_is_name(table)) {
-		CSR_WARN(
-			"Invalid 'table' argument.",
-			"update(char *table)"
-		);
+		CSR_WARN("Invalid 'table' argument.");
 		return 0;
 	}
 
@@ -357,18 +374,12 @@ int __csr_update__ (csrObject *self, char *table)
 
 	/* observando resultados */
 	if (csr_is_empty(set)) {
-		CSR_WARN(
-			"There is no data to update (see add method).",
-			"update(char *table)"
-		);
+		CSR_WARN("There is no data to update (see add method).");
 		return 0;
 	}
 
 	if (csr_is_empty(where)) {
-		CSR_INFO(
-			"The 'WHERE' clause is not defined (see add method).",
-			"update(char *table)"
-		);
+		CSR_INFO("The 'WHERE' clause is not defined (see add method).");
 	}
 
 	/* construindo query */
@@ -387,6 +398,9 @@ int __csr_update__ (csrObject *self, char *table)
 
 int __csr_delete__ (csrObject *self, char *table)
 {
+	/* protótipo */
+	csr_prototype = "delete (char *table)";
+
 	/* variáveis locais */
 	char *where, *query;
 	int result;
@@ -394,18 +408,12 @@ int __csr_delete__ (csrObject *self, char *table)
 
 	/* testando informações */
 	if (self->data == NULL) {
-		CSR_WARN(
-			"There is no data to insert (see add method).",
-			"delete(char *table)"
-		);
+		CSR_WARN("There is no data to insert (see add method).");
 		return 0;
 	}
 
 	if (!csr_is_name(table)) {
-		CSR_WARN(
-			"Invalid 'table' argument.",
-			"delete(char *table)"
-		);
+		CSR_WARN("Invalid 'table' argument.");
 		return 0;
 	}
 
@@ -425,10 +433,7 @@ int __csr_delete__ (csrObject *self, char *table)
 
 	/* observando resultados */
 	if (csr_is_empty(where)) {
-		CSR_INFO(
-			"The 'WHERE' clause is not defined (see add method).",
-			"delete(char *table)"
-		);
+		CSR_INFO("The 'WHERE' clause is not defined (see add method).");
 	}
 
 	/* construindo query */
@@ -447,6 +452,9 @@ int __csr_delete__ (csrObject *self, char *table)
 
 int __csr_select__ (csrObject *self, char *table, void (*reader)())
 {
+	/* protótipo */
+	csr_prototype = "select (char *table, void (*reader)())";
+
 	/* variáveis locais */
 	char *col, *where, *query;
 	int result;
@@ -454,10 +462,7 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 
 	/* testando informações */
 		if (!csr_is_name(table)) {
-		CSR_WARN(
-			"Invalid 'table' argument.",
-			"select(char *table, void (*reader)())"
-		);
+		CSR_WARN("Invalid 'table' argument.");
 		return 0;
 	}
 	
@@ -503,24 +508,21 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 
 int __csr_add__ (csrObject *self, char *column, char *value, int where)
 {
+	/* protótipo */
+	csr_prototype = "add (char *column, char *value)";
+
 	/* definindo variáveis locais */
 	csrData *data;
 
 	/* verificar se a coluna foi informada */
 	if (!csr_is_name(column)) {
-		CSR_WARN(
-			"Invalid 'column' argument.",
-			"add(char *column, char *value)"
-		);
+		CSR_WARN("Invalid 'column' argument.");
 		return 0;
 	}
 
 	/* informar sobre a existência de apóstrofo */
 	if (value != NULL && strstr(value, "'") != NULL) {
-		CSR_INFO(
-			"Single quotes must be used in double (''Hi'') in SQLite.",
-			"add(char *column, char *value)"
-		);
+		CSR_INFO("Single quotes must be used in double (''Hi'') in SQLite.");
 	}
 
 	/* definindo variáveis */
@@ -554,6 +556,9 @@ int __csr_add__ (csrObject *self, char *column, char *value, int where)
 
 int __csr_clear__ (csrObject *self)
 {
+	/* protótipo */
+	csr_prototype = "clear ()";
+
 	/* definindo variáveis locais */
 	csrData *data, *old;
 	data = self->data;
@@ -576,6 +581,9 @@ int __csr_clear__ (csrObject *self)
 
 char *__csr_fetch__ (csrObject *self, char *col)
 {
+	/* protótipo */
+	csr_prototype = "fetch (char *col)";
+
 	/* variáveis locais */
 	int i;
 
@@ -586,10 +594,12 @@ char *__csr_fetch__ (csrObject *self, char *col)
 		self->row    = 0;
 		self->len    = 0;
 		self->reader = NULL;
-		CSR_WARN(
+/*
+		CSR_WARN2(
 			"Use the method only in queries (SELECT statements)",
 			"fetch(char *col)"
 		);
+*/
 		return NULL;
 	}
 
@@ -602,4 +612,26 @@ char *__csr_fetch__ (csrObject *self, char *col)
 
 	/* se nada for encontrado */
 	return NULL;
+}
+
+/*...........................................................................*/
+
+int __csr_status__ (csrObject *self)
+{
+	return self->code;
+}
+
+/*...........................................................................*/
+
+char *__csr_info__ (csrObject *self)
+{
+	return self->message;
+}
+
+/*...........................................................................*/
+
+void __csr_debug__ (csrObject *self, int val)
+{
+	self->print = val == 0 ? 0 : 1;
+	return;
 }
