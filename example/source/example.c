@@ -10,9 +10,6 @@ int main(int argc, char *argv[]) {
 	new_csr(db, "example.db");
 	db.debug(1);
 	printf("%d\n", db.sql(sql));
-	printf("%s\n", db.info());
-
-
 
 	//if (db.error) printf("Erro: %s\n\n", db.msg);
 	//if (!db.add("col1", "adocica meu amor adocia", 0)) {printf("Erro no add");}
@@ -22,11 +19,7 @@ int main(int argc, char *argv[]) {
 	//if (!db.add("col2", "NULL", 1)) {printf("Erro no add");}
 	if (!db.add("col1", "Helena", 0)) {printf("Erro no add");}
 
-	printf("%d\n", db.insert("tabela"));
-	printf("%s\n", db.info());
-	printf("%d\n", db.insert("tabela"));
-	printf("%s\n", db.info());
-//	if (db.error) printf("Erro: %s\n\n", db.msg);
+	printf("%d\n", db.select("tabela", NULL));
 
 	//if (!db.select("tabela", pquery)) {
 	//	printf("Erro: %s\n\n", db.msg);

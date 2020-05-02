@@ -6,30 +6,31 @@
 
 /* mensagem de saída padrão */
 #define CSR_MSG \
-	"\n\033[1;%dm%s[%d] \033[1;36mlibcsrequest > %s\033[0m:\n\t\"%s\"\n\n"
+	"\n\033[1;%dm%s \033[1;36mlibcsrequest.%s\033[0m:\n\t\"%s\"\n\n"
 
-/* mensagens de saídas (return -1 ou NULL) */
+/* mensagens de retornos de função */
 #define CSR_SELF_DATA_NULL "Parameters not defined (see add method)."
 #define CSR_INVALID_TABLE  "Invalid 'table' argument."
 #define CSR_BROKEN_SQL     "Inadequate parameters reported (see add method)."
+#define CSR_NO_WHERE       "The 'WHERE' clause is not defined (see add method)."
 
 /* mensagem informativa */
 #define CSR_INFO(msg) \
-	printf(CSR_MSG, 34, "INFO", 0, csr_prototype, msg)
+	printf(CSR_MSG, 34, "INFO", csr_prototype, msg)
 
 /* mensagem de alerta (retorna -1) */
 #define CSR_WARN(msg) \
-	printf(CSR_MSG, 33, "WARN", 0, csr_prototype, msg)
+	printf(CSR_MSG, 33, "WARN", csr_prototype, msg)
 
 /* mensagem de erro (para a execução) */
 #define CSR_ERROR(msg) \
-	fprintf(stderr, CSR_MSG, 31, "ERROR", __LINE__, csr_prototype, msg); \
+	fprintf(stderr, CSR_MSG, 31, "ERROR", csr_prototype, msg); \
 	exit(1)
 
 /* verifica se ocorreu erro na alocação de memória */
 #define CSR_CHECK_MEMORY(VAR) \
 	if (VAR == NULL) { \
-		CSR_ERROR("Memory allocation error!"); \
+		CSR_ERROR("Memory allocation error: "#VAR); \
 	}\
 
 /*-----------------------------------------------------------------------------
@@ -205,7 +206,7 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	if (csr_prototype == NULL) {
 		csr_prototype = "sql (char *query, void (*reader)())";
 	}
-
+	
 	/* variáveis locais */
 	sqlite3 *db;
 	int open, exec;
@@ -230,17 +231,15 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 		return self->status();
 	}
 
-	
 	/* executando ação */	
 	exec = sqlite3_exec(db, query, callback, self, &error);
 	
 	/* redefinindo valores */
-	self->col    = NULL;
-	self->val    = NULL;
-	self->row    = 0;
-	self->len    = 0;
-	self->reader = NULL;
-
+	self->col     = NULL;
+	self->val     = NULL;
+	self->row     = 0;
+	self->len     = 0;
+	self->reader  = NULL;
 
 	/* verificar sucesso no procedimento anterior */
 	if (exec != SQLITE_OK) {
@@ -254,8 +253,9 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 		csr_set_status(self, CSR_FAIL, error);
 	}
 
-	/* liberando memória */
+	/* liberando memória e zerando csr_prototype */
 	sqlite3_free(error);
+	csr_prototype = NULL;
 
 	return self->status();
 }
@@ -298,7 +298,7 @@ int __csr_insert__ (csrObject *self, char *table)
 		data = data->next;
 	}
 
-	/* testando erros */
+	/* verificando erros */
 	if (self->data == NULL) {
 		csr_set_status(self, CSR_ERR, CSR_SELF_DATA_NULL);
 	} else if (!csr_is_name(table)) {
@@ -330,23 +330,12 @@ int __csr_insert__ (csrObject *self, char *table)
 int __csr_update__ (csrObject *self, char *table)
 {
 	/* prototype */
-	csr_prototype = "update(char *table)";
+	csr_prototype = "update (char *table)";
 
 	/* variáveis locais */
 	char *set, *where, *query;
 	int result;
 	csrData *data;
-
-	/* testando informações */
-	if (self->data == NULL) {
-		CSR_WARN("There is no data to update (see add method).");
-		return 0;
-	}
-
-	if (!csr_is_name(table)) {
-		CSR_WARN("Invalid 'table' argument.");
-		return 0;
-	}
 
 	/* defindo valores iniciais */
 	data = malloc(sizeof(csrData));
@@ -372,18 +361,24 @@ int __csr_update__ (csrObject *self, char *table)
 		data = data->next;
 	}
 
-	/* observando resultados */
-	if (csr_is_empty(set)) {
-		CSR_WARN("There is no data to update (see add method).");
-		return 0;
+	/* verificando erros */
+	if (self->data == NULL) {
+		csr_set_status(self, CSR_ERR, CSR_SELF_DATA_NULL);
+	} else if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+	} else if (csr_is_empty(set)) {
+		csr_set_status(self, CSR_ERR, CSR_BROKEN_SQL);
+	} else if (csr_is_empty(where)) {
+		csr_set_status(self, CSR_ERR, CSR_NO_WHERE);
+	} else {
+		csr_clear_status(self);
 	}
-
-	if (csr_is_empty(where)) {
-		CSR_INFO("The 'WHERE' clause is not defined (see add method).");
-	}
+	if (self->status() != CSR_OK) return self->status();
 
 	/* construindo query */
-	query = csr_cat("UPDATE ", table, " SET ", set, where, ";", NULL);
+	query = csr_cat(
+		"UPDATE ", table, " SET ", set, where, ";", NULL
+	);
 
 	/* executando query */
 	result = self->sql(query, NULL);
@@ -406,17 +401,6 @@ int __csr_delete__ (csrObject *self, char *table)
 	int result;
 	csrData *data;
 
-	/* testando informações */
-	if (self->data == NULL) {
-		CSR_WARN("There is no data to insert (see add method).");
-		return 0;
-	}
-
-	if (!csr_is_name(table)) {
-		CSR_WARN("Invalid 'table' argument.");
-		return 0;
-	}
-
 	/* defindo valores iniciais */
 	data = malloc(sizeof(csrData));
 	CSR_CHECK_MEMORY(data)
@@ -431,13 +415,22 @@ int __csr_delete__ (csrObject *self, char *table)
 		data = data->next;
 	}
 
-	/* observando resultados */
-	if (csr_is_empty(where)) {
-		CSR_INFO("The 'WHERE' clause is not defined (see add method).");
+	/* verificando erros */
+	if (self->data == NULL) {
+		csr_set_status(self, CSR_ERR, CSR_SELF_DATA_NULL);
+	} else if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+	} else if (csr_is_empty(where)) {
+		csr_set_status(self, CSR_ERR, CSR_NO_WHERE);
+	} else {
+		csr_clear_status(self);
 	}
+	if (self->status() != CSR_OK) return self->status();
 
 	/* construindo query */
-	query = csr_cat("DELETE FROM ", table, where, ";", NULL);
+	query = csr_cat(
+		"DELETE FROM ", table, where, ";", NULL
+	);
 
 	/* executando query */
 	result = self->sql(query, NULL);
@@ -461,9 +454,9 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 	csrData *data;
 
 	/* testando informações */
-		if (!csr_is_name(table)) {
-		CSR_WARN("Invalid 'table' argument.");
-		return 0;
+	if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+		return self->status();
 	}
 	
 	/* defindo valores iniciais */
@@ -477,10 +470,13 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 	while (data != NULL) {
 		if (data->where == 1 && strlen(where) == 0) {
 			where = csr_cat(" WHERE ", data->col, " = ", data->val, NULL);
-		} else if (strlen(col) > 0) {
-			col = csr_cat(col, ", ", data->col, NULL);
 		} else {
-			col = data->col;
+			csr_cat(
+				(csr_is_empty(col) ? "" : col),
+				(csr_is_empty(col) ? "" : ", "),
+				data->col,
+				NULL
+			);
 		}
 		data = data->next;
 	}
@@ -488,9 +484,9 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 	/* construindo query */
 	query = csr_cat(
 		"SELECT ",
-		(strlen(col) == 0 ? "*" : col),
+		(csr_is_empty(col) ? "*" : col),
 		" FROM ", table,
-		(strlen(where) > 0 ? where : ""),
+		(csr_is_empty(where) ? "" : where),
 		";",
 		NULL
 	);
