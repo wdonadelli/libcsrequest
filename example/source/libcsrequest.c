@@ -5,14 +5,20 @@
 -----------------------------------------------------------------------------*/
 
 /* mensagem de saída padrão */
-#define CSR_MSG \
-	"\n\033[1;%dm%s \033[1;36mlibcsrequest.%s\033[0m:\n\t\"%s\"\n\n"
+#define CSR_MSG "\n\
+\033[0;1;7;%dm %s \
+\033[0m \
+\033[0;1;3;96mlibcsrequest\
+\033[0m.%s\
+\033[0;2;3m\n\t%s\
+\033[0m\n\n"
 
 /* mensagens de retornos de função */
 #define CSR_SELF_DATA_NULL "Parameters not defined (see add method)."
 #define CSR_INVALID_TABLE  "Invalid 'table' argument."
 #define CSR_BROKEN_SQL     "Inadequate parameters reported (see add method)."
 #define CSR_NO_WHERE       "The 'WHERE' clause is not defined (see add method)."
+#define CSR_NO_CALLBACK    "The 'reader' function is mandatory for queries."
 
 /* mensagem informativa */
 #define CSR_INFO(msg) \
@@ -169,7 +175,7 @@ static void csr_clear_status (csrObject *self)
 
 /*...........................................................................*/
 
-static int callback (void *data, int len, char **val, char **col)
+static int csr_callback (void *data, int len, char **val, char **col)
 /* função a ser acionada durante pesquisa */
 {
 	/* variáveis locais: obtendo self */
@@ -177,7 +183,7 @@ static int callback (void *data, int len, char **val, char **col)
 	
 	/* verificando reader */
 	if (self->reader == NULL) {
-		CSR_WARN("The \"reader\" function is mandatory for queries.");
+		csr_set_status(self, CSR_OK, CSR_NO_CALLBACK);
 		return 1;
 	}
 	
@@ -213,6 +219,7 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	char *error = NULL;
 	
 	/* valores iniciais */
+	csr_clear_status(self);
 	self->col    = NULL;
 	self->val    = NULL;
 	self->row    = 0;
@@ -221,7 +228,7 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 
 	/* abrindo/criando banco de dados */
 	open = sqlite3_open(
-		csr_is_empty(self->file) ? ":memory:" : self->file,
+		(csr_is_empty(self->file) ? ":memory:" : self->file),
 		&db
 	);
 
@@ -231,9 +238,10 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 		return self->status();
 	}
 
-	/* executando ação */	
-	exec = sqlite3_exec(db, query, callback, self, &error);
-	
+	/*-- executando query ----------------------------------------------------*/
+	exec = sqlite3_exec(db, query, csr_callback, self, &error);
+	/*------------------------------------------------------------------------*/
+
 	/* redefinindo valores */
 	self->col     = NULL;
 	self->val     = NULL;
@@ -258,6 +266,65 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	csr_prototype = NULL;
 
 	return self->status();
+}
+
+/*...........................................................................*/
+
+int __csr_select__ (csrObject *self, char *table, void (*reader)())
+{
+	/* protótipo */
+	csr_prototype = "select (char *table, void (*reader)())";
+
+	/* variáveis locais */
+	char *col, *where, *query;
+	int result;
+	csrData *data;
+
+	/* testando informações */
+	if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+		return self->status();
+	}
+	
+	/* defindo valores iniciais */
+	data = malloc(sizeof(csrData));
+	CSR_CHECK_MEMORY(data);
+	data  = self->data;
+	col   = "";
+	where = "";
+
+	/* looping: definindo demais valores */
+	while (data != NULL) {
+		if (data->where == 1 && strlen(where) == 0) {
+			where = csr_cat(" WHERE ", data->col, " = ", data->val, NULL);
+		} else {
+			col = csr_cat(
+				(csr_is_empty(col) ? "" : col),
+				(csr_is_empty(col) ? "" : ", "),
+				data->col,
+				NULL
+			);
+		}
+		data = data->next;
+	}
+
+	/* construindo query */
+	query = csr_cat(
+		"SELECT ",
+		(csr_is_empty(col) ? "*" : col),
+		" FROM ", table,
+		(csr_is_empty(where) ? "" : where),
+		";",
+		NULL
+	);
+
+	/* executando query */
+	result = self->sql(query, reader);
+
+	/* liberando memória */
+	free(data);
+
+	return result;
 }
 
 /*...........................................................................*/
@@ -434,65 +501,6 @@ int __csr_delete__ (csrObject *self, char *table)
 
 	/* executando query */
 	result = self->sql(query, NULL);
-
-	/* liberando memória */
-	free(data);
-
-	return result;
-}
-
-/*...........................................................................*/
-
-int __csr_select__ (csrObject *self, char *table, void (*reader)())
-{
-	/* protótipo */
-	csr_prototype = "select (char *table, void (*reader)())";
-
-	/* variáveis locais */
-	char *col, *where, *query;
-	int result;
-	csrData *data;
-
-	/* testando informações */
-	if (!csr_is_name(table)) {
-		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
-		return self->status();
-	}
-	
-	/* defindo valores iniciais */
-	data = malloc(sizeof(csrData));
-	CSR_CHECK_MEMORY(data);
-	data  = self->data;
-	col   = "";
-	where = "";
-
-	/* looping: definindo demais valores */
-	while (data != NULL) {
-		if (data->where == 1 && strlen(where) == 0) {
-			where = csr_cat(" WHERE ", data->col, " = ", data->val, NULL);
-		} else {
-			csr_cat(
-				(csr_is_empty(col) ? "" : col),
-				(csr_is_empty(col) ? "" : ", "),
-				data->col,
-				NULL
-			);
-		}
-		data = data->next;
-	}
-
-	/* construindo query */
-	query = csr_cat(
-		"SELECT ",
-		(csr_is_empty(col) ? "*" : col),
-		" FROM ", table,
-		(csr_is_empty(where) ? "" : where),
-		";",
-		NULL
-	);
-
-	/* executando query */
-	result = self->sql(query, reader);
 
 	/* liberando memória */
 	free(data);

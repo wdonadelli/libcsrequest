@@ -19,7 +19,10 @@ int main(int argc, char *argv[]) {
 	//if (!db.add("col2", "NULL", 1)) {printf("Erro no add");}
 	if (!db.add("col1", "Helena", 0)) {printf("Erro no add");}
 
-	printf("%d\n", db.select("tabela", NULL));
+	db.insert("tabela");	
+
+	printf("%d\n", db.select("tabela"));
+	printf("%s\n", db.info());
 
 	//if (!db.select("tabela", pquery)) {
 	//	printf("Erro: %s\n\n", db.msg);
