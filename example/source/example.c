@@ -17,11 +17,14 @@ int main(int argc, char *argv[]) {
 	//if (!db.add("col1", "Música Ruim", 0)) {printf("Erro no add");}
 	//if (!db.add("col2", "9999", 0)) {printf("Erro no add");}
 	//if (!db.add("col2", "NULL", 1)) {printf("Erro no add");}
-	if (!db.add("col1", "Helena", 0)) {printf("Erro no add");}
+	//if (!db.add("col1", "Helena", 0)) {printf("Erro no add");}
 
-	db.insert("tabela");	
+//	db.insert("tabela");	
 
-	printf("%d\n", db.select("tabela"));
+	//printf("%d\n", db.select("tabela", pquery));
+	//printf("%d\n", db.add("tabela", "li'ndas"));
+	db.fetch("tabela");
+	printf("%d\n", db.sql("SELECT * FROM 2tabela"));
 	printf("%s\n", db.info());
 
 	//if (!db.select("tabela", pquery)) {
