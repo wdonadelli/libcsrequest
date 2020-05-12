@@ -7,9 +7,9 @@ void pquery(csrObject x);
 int main(int argc, char *argv[]) {
 	char sql[] = "CREATE TABLE tabela (col1 TEXT, col2 NUMBER);";
 
-	new_csr(db, "example.db");
-	db.debug(1);
-	printf("%d\n", db.sql(sql));
+	new_CSR(db, "example.db");
+	//db.debug(1);
+	//printf("%d\n", db.sql(sql));
 
 	//if (db.error) printf("Erro: %s\n\n", db.msg);
 	//if (!db.add("col1", "adocica meu amor adocia", 0)) {printf("Erro no add");}
@@ -21,11 +21,11 @@ int main(int argc, char *argv[]) {
 
 //	db.insert("tabela");	
 
-	//printf("%d\n", db.select("tabela", pquery));
+	//printf("%d\n", db.sql("select * from tabela", NULL));
 	//printf("%d\n", db.add("tabela", "li'ndas"));
-	db.fetch("tabela");
-	printf("%d\n", db.sql("SELECT * FROM 2tabela"));
-	printf("%s\n", db.info());
+	//db.fetch("tabela");
+	//printf("%d\n", db.sql("SELECT * FROM 2tabela"));
+	printf("%s\n", db.select("456"));
 
 	//if (!db.select("tabela", pquery)) {
 	//	printf("Erro: %s\n\n", db.msg);

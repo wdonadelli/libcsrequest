@@ -10,10 +10,11 @@ To import the library use the following header:
 #include "libcsrequest.h"
 ```
 
-To compile the source code it is necessary to use the `-l sqlite3` flag.
+To compile the source code it is necessary to use the `-l sqlite3` flag (see *libsqlite3-dev* package or equivalent).
+
+GCC example:
 
 ```sh
-#GCC example:
 gcc -c libcsrequest.c -l sqlite3
 ```
 
@@ -21,11 +22,10 @@ Next, the construction and use of the tool will be demonstrated.
 
 ## The builder
 
-The construction of the structure is done from the macro `new_csr`:
-
+The construction of the structure is done from the macro `new_CSR`:
 
 ```c
-#define new_csr(OBJECT, FILE);
+#define new_CSR(OBJECT, FILE)
 ```
 
 ### Parameters
@@ -42,12 +42,243 @@ If the path to the database file is null or empty, the value "[:memory:](https:/
 ### Example
 
 ```c
-new_csr(db, "example.db");
+new_CSR(varDB, "myData.db");
 ```
 
-`db` will be the variable that will receive the structure (csrObject type) to interact with the database called "example.db".
+`varDB` will be the variable that will receive the structure (`csrObject` type) to interact with the database called "myData.db".
 
-## Attributes
+<!--.........................................................................-->
+
+## Methods
+
+### status
+
+The method returns the result of the last request.
+
+```c
+int status ()
+```
+
+#### Parameters
+
+there are no parameters.
+
+##### Returns
+
+Three values (integer) ​​are possible:
+
+`CSR_OK`: when the request was successful;
+
+`CSR_ERR`: when an internal error of the method occurs; and
+
+`CSR_FAIL`: when an error occurs in the SQL request.
+
+<!--.........................................................................-->
+
+### info
+
+The method returns the message of the last request according to the type of occurrence.
+
+```c
+char *info ()
+```
+
+#### Parameters
+
+there are no parameters.
+
+##### Returns
+
+Two types of returns can occur. If the request returns `CSR_OK`, a blank string is returned. In the case of return `CSR_ERR` and `CSR_FAIL`, the respective message will be returned.
+
+<!--.........................................................................-->
+
+### debug
+
+Turns on/off the display of error messages returned by methods on the terminal. By default, messages on the terminal are on.
+
+```c
+void debug (int val)
+```
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|val|(required) A Integer number that, when equal to zero, turns messages off. Other values ​​turn on the display of messages.|
+
+##### Returns
+
+There is no return.
+
+<!--.........................................................................-->
+
+### fetch
+
+Returns the value of the column within SELECT SQL requests or equivalent. It cannot be used separately from an SQL request.
+
+```c
+char *fetch (char *col)
+```
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|col|(required) Column name.|
+
+##### Returns
+
+Returns `NULL` if the column value is null or if the method is called outside of a reader function (see below). Otherwise, it returns the value of the column as a *string*.
+
+<!--.........................................................................-->
+
+### sql
+
+The method executes an SQL request.
+
+```c
+int sql (char *query, void (*reader)())
+```
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|query|(required) SQL Statement.|
+|reader|Function to be called when information is returned in SQL requests. It is required in the case of SELECT statements, for example, in other situations it can be `NULL` value.|
+
+##### Returns
+
+`CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
+
+#### Examples
+
+Create a table called "tab" with two columns, "age" (NUMBER) and "name" (TEXT):
+
+```c
+varDB.sql("CREATE TABLE tab age NUMBER, name TEXT;", NULL);
+```
+
+<!--.........................................................................-->
+
+### Reader Function
+
+The purpose of the reader function is to define the action to be performed when requesting information from the database.
+
+It has the following prototype model:
+
+```c
+void name (csrObject argument)
+```
+
+The `fetch` method can only be accessed within the scope of the reader function.
+
+#### Parameters
+
+The (required) argument will receive the same structure created by the `new_CSR` macro but with additional information inherent to the data returned from the SQL request, line by line of the search. request.
+
+The structure has the following information:
+
+`unsigned long int row`
+
+Returns the line number of the search (from 1).
+
+`unsigned int len`
+
+Returns the number of columns (from 1).
+
+##### Returns
+
+There is no return.
+
+#### Examples
+
+Define a reader function and make a SELECT request.
+
+```c
+void myReader (csrObject data)
+{
+	printf("row: %ld\n", data.row);
+	printf("len: %d\n",  data.len);
+	printf("name: %s\n", data.fetch("name") == NULL ? "NULL" : data.fetch("name"));
+	printf("age: %s\n",  data.fetch("age") == NULL ? "NULL" : data.fetch("age"));
+}
+
+varDB.sql("SELECT * FROM tab", myReader);
+```
+
+It is worth remembering that, if the column value is null, the `fetch` method will return a null pointer (`NULL`) and not a `"NULL"` string.
+
+<!--.........................................................................-->
+
+### add
+
+It is a method designed to add or change information for later manipulation.
+
+```c
+int add (char *column, char *value, int where)
+```
+
+The method is a tool for executing shortcut methods.
+
+For different shortcut functions, different behaviors will be applied to the reported data.
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|column|(required) Column name.|
+|value|(required) Column value.|
+|where|(required) It is an integer that defines whether the information will be treated within the _SQL WHERE_ declaration (1 to confirm the destination).|
+
+As for the `where` argument, only one information will be treated in this way, the last one recorded.
+
+To change an entered value, the `column` and `where` arguments must be entered with the same values ​​previously informed. It is not possible to remove specific information (see the clear method).
+
+##### Returns
+
+`CSR_OK`or `CSR_ERR`.
+
+#### Examples
+
+```c
+varDB.add("age", 26, 0);
+varDB.add("name", "Mary", 0);
+varDB.add("name", "Mary", 1);
+```
+
+Changing the age value:
+
+```c
+varDB.add("age", 27, 0);
+```
+
+The same set of elements will only be considered if the `where` and `column` arguments are the same.
+
+<!--.........................................................................-->
+
+### clear
+
+Clears the data registered by the "add" method. With each successful execution of the shortcut methods, the data will be cleared.
+
+```c
+int clear ()
+```
+
+#### Parameters
+
+there are no parameters.
+
+##### Returns
+
+`CSR_OK`or `CSR_ERR`.
+
+#### Examples
+
+```c
+varDB.clear();
+```
 
 
 
@@ -58,15 +289,55 @@ new_csr(db, "example.db");
 
 
 
-#### Returns
 
-Forces the application to exit if any identifiable error is found. Possible errors are:
 
-- multiple function calls
-- Failed to initialize GTK;
-- Failed to initialize GTK Builder;
-- Failed to load the interface file; and
-- Failed to set the top level window.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### Connecting signals
 

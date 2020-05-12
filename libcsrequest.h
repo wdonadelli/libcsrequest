@@ -262,9 +262,9 @@ SOFTWARE.
 
 
 /*-----------------------------------------------------------------------------
-	new_csr () construtor da estrutura
+	new_CSR () construtor da estrutura
 -----------------------------------------------------------------------------*/
-	#define new_csr(OBJECT, FILE) \
+	#define new_CSR(OBJECT, FILE) \
                                  \
 		csrObject OBJECT;		      \
 		OBJECT.file    = FILE;     \
