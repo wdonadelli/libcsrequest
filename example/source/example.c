@@ -5,7 +5,7 @@ void pquery(csrObject x);
 
 
 int main(int argc, char *argv[]) {
-	char sql[] = "CREATE TABLE tabela (col1 TEXT, col2 NUMBER);";
+	//char sql[] = "CREATE TABLE tabela (col1 TEXT, col2 NUMBER);";
 
 	new_CSR(db, "example.db");
 	//db.debug(1);
@@ -24,8 +24,10 @@ int main(int argc, char *argv[]) {
 	//printf("%d\n", db.sql("select * from tabela", NULL));
 	//printf("%d\n", db.add("tabela", "li'ndas"));
 	//db.fetch("tabela");
-	//printf("%d\n", db.sql("SELECT * FROM 2tabela"));
-	printf("%s\n", db.select("456"));
+	printf("%d\n", db.sql("SELECT * FROM tabela", pquery));
+	printf("%d\n", db.select("tabela", pquery));
+	printf("%s\n", db.info());
+	//printf("%d\n", db.select("456"));
 
 	//if (!db.select("tabela", pquery)) {
 	//	printf("Erro: %s\n\n", db.msg);
@@ -35,7 +37,7 @@ int main(int argc, char *argv[]) {
 
 void pquery(csrObject x)
 {
-	printf(
+	/*printf(
 		"row: %ld\nlen: %d\n%s: %s\n%s: %s\n------\n",
 		x.row,
 		x.len,
@@ -43,6 +45,6 @@ void pquery(csrObject x)
 		x.fetch("col1"),
 		"col2",
 		x.fetch("col2")
-	);
+	);*/
 	
 }

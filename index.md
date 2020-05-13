@@ -157,7 +157,7 @@ int sql (char *query, void (*reader)())
 Create a table called "tab" with two columns, "age" (NUMBER) and "name" (TEXT):
 
 ```c
-varDB.sql("CREATE TABLE tab age NUMBER, name TEXT;", NULL);
+varDB.sql("CREATE TABLE tab (age NUMBER, name TEXT;", NULL));
 ```
 
 <!--.........................................................................-->
@@ -169,14 +169,14 @@ The purpose of the reader function is to define the action to be performed when 
 It has the following prototype model:
 
 ```c
-void name (csrObject argument)
+void functionName (csrObject argumentName)
 ```
 
 The `fetch` method can only be accessed within the scope of the reader function.
 
 #### Parameters
 
-The (required) argument will receive the same structure created by the `new_CSR` macro but with additional information inherent to the data returned from the SQL request, line by line of the search. request.
+The (required) `argumentName` will receive the same structure created by the `new_CSR` macro but with additional information inherent to the data returned from the SQL request, line by line of the search. request.
 
 The structure has the following information:
 

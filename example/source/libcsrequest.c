@@ -18,10 +18,11 @@
 #define CSR_INVALID_TABLE  "Invalid 'table' argument."
 #define CSR_BROKEN_SQL     "Inadequate parameters reported (see add method)."
 #define CSR_NO_WHERE       "The 'WHERE' clause is not defined (see add method)."
-#define CSR_NO_CALLBACK    "The 'reader' function is mandatory for queries."
+#define CSR_NO_CALLBACK    "The 'reader' function is required for queries."
 #define CSR_INVALID_COLUMN "Invalid 'column' argument."
 #define CSR_SINGLE_QUOTES  "Single quotes must be used in double in SQLite."
 #define CSR_FETCH_NO_QUERY "Use the method only in queries (SELECT statements)"
+#define CSR_EMPTY_QUERY    "Empty SQL statement."
 
 /* macro dos protótipos */
 #define CSR_SQL    "sql(char *query, void (*reader)())"
@@ -32,19 +33,6 @@
 #define CSR_ADD    "add(char *column, char *value)"
 #define CSR_CLEAR  "clear()"
 #define CSR_FETCH  "fetch(char *col)"
-
-/* macro para definir valor de csr_prototype */
-#define CSR_START(PTYPE) \
-	if (strcmp(PTYPE, CSR_SQL) == 0 && csr_is_empty(csr_prototype)); \
-	else csr_prototype = PTYPE; \
-	csr_clear_status(self); \
-
-/* macro para redefinir o valor de csr_prototype e retornar */
-#define CSR_RETURN \
-	if (self->status() != CSR_OK) { \
-		csr_prototype = NULL; \
-		return self->status(); \
-	} \
 
 /* mensagem informativa */
 #define CSR_INFO(msg) \
@@ -71,6 +59,9 @@
 
 /* guarda o protótipo da função executada */
 static char *csr_prototype = NULL;
+
+/* guarda informação se a função sql foi chamada por uma função de atalho */
+static int csr_shortcut = 0;
 
 /*...........................................................................*/
 
@@ -233,8 +224,20 @@ static int csr_callback (void *data, int len, char **val, char **col)
 int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 {
 	printf("---\n%s\n---\n\n", query);
-	
-	CSR_START(CSR_SQL);
+
+	/* definindo prototype e limpando status */
+	if (csr_shortcut) {
+		csr_shortcut = 0;
+	} else {
+		csr_prototype = CSR_SQL;
+	}
+	csr_clear_status(self);
+
+	/* verificando se query foi informado */
+	if (csr_is_empty(query)) {
+		csr_set_status(self, CSR_ERR, CSR_EMPTY_QUERY);
+		return self->status();
+	}
 
 	/* variáveis locais */
 	sqlite3 *db;
@@ -242,7 +245,6 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	char *error = NULL;
 	
 	/* valores iniciais */
-	csr_clear_status(self);
 	self->col    = NULL;
 	self->val    = NULL;
 	self->row    = 0;
@@ -258,7 +260,7 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	/* verificando sucesso no procedimento anterior */
 	if (open != SQLITE_OK) {
 		csr_set_status(self, CSR_FAIL, sqlite3_errmsg(db));
-		CSR_RETURN;
+		return self->status();
 	}
 
 	/*-- executando query ----------------------------------------------------*/
@@ -273,20 +275,22 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 	self->reader  = NULL;
 
 	/* verificar sucesso no procedimento anterior */
-	if (exec != SQLITE_OK && self->status() == CSR_ERR) {
-		CSR_RETURN;
-	} else if (exec != SQLITE_OK) {
-		csr_set_status(self, CSR_FAIL, error);
+	if (exec == SQLITE_OK) {
+		if (sqlite3_close(db) != SQLITE_OK) {
+			csr_set_status(self, CSR_FAIL, error);
+		}
+		if (strcmp(csr_prototype, CSR_SQL) == 0) printf("é igual\n");
+		if (strcmp(csr_prototype, CSR_SQL) != 0) printf("é diferente\n");
+		
+		
+	} else if (self->status() == CSR_ERR) {
+		sqlite3_close(db);
 	} else {
-		self->clear();
-	}
-
-	/* verificando erro ao fechar o banco de dados */
-	if (sqlite3_close(db) != SQLITE_OK && self->status() == CSR_OK) {
 		csr_set_status(self, CSR_FAIL, error);
+		sqlite3_close(db);
 	}
 
-	/* liberando memória e zerando csr_prototype */
+	/* liberando memória e retornando */
 	sqlite3_free(error);
 
 	return self->status();
@@ -296,17 +300,20 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 
 int __csr_select__ (csrObject *self, char *table, void (*reader)())
 {
-	CSR_START(CSR_SELECT);
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_SELECT;
+	csr_clear_status(self);
 
 	/* variáveis locais */
 	char *col, *where, *query;
 	int result;
 	csrData *data;
 
-
 	/* testando informações */
-	if (!csr_is_name(table)) csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
-	CSR_RETURN;
+	if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+		return self->status();
+	}
 
 	/* defindo valores iniciais */
 	data = malloc(sizeof(csrData));
@@ -341,6 +348,7 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 	);
 
 	/* executando query */
+	csr_shortcut = 1;
 	result = self->sql(query, reader);
 
 	/* liberando memória */
@@ -353,7 +361,9 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 
 int __csr_insert__ (csrObject *self, char *table)
 {
-	CSR_START(CSR_INSERT);
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_INSERT;
+	csr_clear_status(self);
 
 	/* variáveis locais */
 	char *col, *val, *query;
@@ -394,8 +404,9 @@ int __csr_insert__ (csrObject *self, char *table)
 	} else if (csr_is_empty(col) || csr_is_empty(val)) {
 		csr_set_status(self, CSR_ERR, CSR_BROKEN_SQL);
 	}
-	CSR_RETURN;
-	
+	if (self->status() != CSR_OK) {
+		return self->status();
+	}
 
 	/* construindo query */
 	query = csr_cat(
@@ -403,6 +414,7 @@ int __csr_insert__ (csrObject *self, char *table)
 	);
 
 	/* executando query */
+	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
 	/* liberando memória */
@@ -415,7 +427,9 @@ int __csr_insert__ (csrObject *self, char *table)
 
 int __csr_update__ (csrObject *self, char *table)
 {
-	CSR_START(CSR_UPDATE);
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_UPDATE;
+	csr_clear_status(self);
 
 	/* variáveis locais */
 	char *set, *where, *query;
@@ -456,7 +470,9 @@ int __csr_update__ (csrObject *self, char *table)
 	} else if (csr_is_empty(where)) {
 		csr_set_status(self, CSR_ERR, CSR_NO_WHERE);
 	}
-	CSR_RETURN;
+	if (self->status() != CSR_OK) {
+		return self->status();
+	}
 
 	/* construindo query */
 	query = csr_cat(
@@ -464,6 +480,7 @@ int __csr_update__ (csrObject *self, char *table)
 	);
 
 	/* executando query */
+	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
 	/* liberando memória */
@@ -476,7 +493,9 @@ int __csr_update__ (csrObject *self, char *table)
 
 int __csr_delete__ (csrObject *self, char *table)
 {
-	CSR_START(CSR_DELETE);
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_DELETE;
+	csr_clear_status(self);
 
 	/* variáveis locais */
 	char *where, *query;
@@ -505,7 +524,9 @@ int __csr_delete__ (csrObject *self, char *table)
 	} else if (csr_is_empty(where)) {
 		csr_set_status(self, CSR_ERR, CSR_NO_WHERE);
 	}
-	CSR_RETURN;
+	if (self->status() != CSR_OK) {
+		return self->status();
+	}
 
 	/* construindo query */
 	query = csr_cat(
@@ -513,6 +534,7 @@ int __csr_delete__ (csrObject *self, char *table)
 	);
 
 	/* executando query */
+	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
 	/* liberando memória */
@@ -525,14 +547,18 @@ int __csr_delete__ (csrObject *self, char *table)
 
 int __csr_add__ (csrObject *self, char *column, char *value, int where)
 {
-	CSR_START(CSR_ADD);
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_ADD;
+	csr_clear_status(self);
 
 	/* definindo variáveis locais */
 	csrData *data;
 
 	/* verificar se a coluna foi informada */
-	if (!csr_is_name(column)) csr_set_status(self, CSR_ERR, CSR_INVALID_COLUMN);
-	CSR_RETURN;
+	if (!csr_is_name(column)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_COLUMN);
+		return self->status();
+	}
 
 	/* informar sobre a existência de apóstrofo */
 	if (value != NULL && strstr(value, "'") != NULL) {
@@ -570,7 +596,9 @@ int __csr_add__ (csrObject *self, char *column, char *value, int where)
 
 int __csr_clear__ (csrObject *self)
 {
-	CSR_START(CSR_CLEAR);
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_CLEAR;
+	csr_clear_status(self);
 
 	/* definindo variáveis locais */
 	csr_clear_status(self);
@@ -595,7 +623,8 @@ int __csr_clear__ (csrObject *self)
 
 char *__csr_fetch__ (csrObject *self, char *col)
 {
-	CSR_START(CSR_FETCH);
+	/* definindo prototype */
+	csr_prototype = CSR_FETCH;
 
 	/* variáveis locais */
 	int i;
