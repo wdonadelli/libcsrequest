@@ -324,10 +324,10 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		if (data->where == 1 && strlen(where) == 0) {
+		if (data->where && strlen(where) == 0) {
 			/* obter WHERE se ainda não definido */
 			where = csr_set_where(data->col, data->val);
-		} else if (data->where == 0) {
+		} else if (!data->where) {
 			/* ignorar os registros com WHERE e registrar os demais */
 			col = csr_cat(
 				(csr_is_empty(col) ? "" : col),
@@ -647,7 +647,6 @@ char *__csr_fetch__ (csrObject *self, char *column)
 		self->len    = 0;
 		self->reader = NULL;
 		csr_set_status(self, CSR_ERR, CSR_FETCH_NO_QUERY);
-		csr_prototype = NULL;
 		return NULL;
 	}
 
