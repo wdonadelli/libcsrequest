@@ -327,8 +327,7 @@ Only the most recent record with the `where` argument enabled will be used in th
 ```c
 varDB.select("tab", myReader);
 ```
-
-It will result in: "_SELECT * FROM tab;_"
+"_SELECT * FROM tab;_"
 
 ```c
 varDB.add("age", NULL, 0);
@@ -336,8 +335,7 @@ varDB.add("name", NULL, 0);
 
 varDB.select("tab", myReader);
 ```
-
-It will result in: "_SELECT name, age FROM tab;_"
+"_SELECT name, age FROM tab;_"
 
 ```c
 varDB.add("age", NULL, 0);
@@ -346,8 +344,7 @@ varDB.add("age", "12", 1); /* where enabled */
 
 varDB.select("tab", myReader);
 ```
-
-It will result in: "_SELECT name, age FROM tab WHERE age = '12';_"
+"_SELECT name, age FROM tab WHERE age = '12';_"
 
 ```c
 varDB.add("age", NULL, 0);
@@ -355,11 +352,9 @@ varDB.add("name", NULL, 0);
 varDB.add("age", "12", 1); /* It will be ignored by the next command. */
 varDB.add("name", NULL, 1); /* where enabled (last) */
 
-
 varDB.select("tab", myReader);
 ```
-
-It will result in: "_SELECT name, age FROM tab WHERE name IS NULL;_"
+"_SELECT name, age FROM tab WHERE name IS NULL;_"
 
 
 
