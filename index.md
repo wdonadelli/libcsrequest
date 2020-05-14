@@ -353,7 +353,7 @@ It will result in: "_SELECT name, age FROM tab WHERE age = '12';_"
 varDB.add("age", NULL, 0);
 varDB.add("name", NULL, 0);
 varDB.add("age", "12", 1); /* It will be ignored by the next command. */
-varDB.add("name", NULL, 1); /* where enabled */
+varDB.add("name", NULL, 1); /* where enabled (last) */
 
 
 varDB.select("tab", myReader);

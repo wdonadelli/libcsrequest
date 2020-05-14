@@ -647,7 +647,6 @@ char *__csr_fetch__ (csrObject *self, char *column)
 		self->len    = 0;
 		self->reader = NULL;
 		csr_set_status(self, CSR_ERR, CSR_FETCH_NO_QUERY);
-		csr_prototype = NULL;
 		return NULL;
 	}
 
