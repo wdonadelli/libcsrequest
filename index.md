@@ -67,11 +67,11 @@ there are no parameters.
 
 Three values (integer) ​​are possible:
 
-`CSR_OK`: when the request was successful;
+`CSR_OK`: The method call was successful;
 
-`CSR_ERR`: when an internal error of the method occurs; and
+`CSR_ERR`: There was a known error when calling the method; and
 
-`CSR_FAIL`: when an error occurs in the SQL request.
+`CSR_FAIL`: There was an error connecting to the database or the SQL request.
 
 <!--.........................................................................-->
 
@@ -129,7 +129,9 @@ char *fetch (char *col)
 
 ##### Returns
 
-Returns `NULL` if the column value is null or if the method is called outside of a reader function (see below). Otherwise, it returns the value of the column as a *string*.
+Returns `NULL` if the column value is null, if the informed column does not exist or if the method is called outside the scope of the reader function. Otherwise, it will return the column value (*string*).
+
+If the reported column does not exist, an error of type `CSR_ERR` will be logged. This fact can be verified by the `info` and `status` methods.
 
 <!--.........................................................................-->
 
@@ -172,11 +174,14 @@ It has the following prototype model:
 void functionName (csrObject argumentName)
 ```
 
-The `fetch` method can only be accessed within the scope of the reader function.
+Where *functionName* is the name of the reader function and *argumentName* is the name of the variable that will receive the object `csrObject`.
+
+**The `fetch` method can only be accessed within the scope of the reader function.**
 
 #### Parameters
 
-The (required) `argumentName` will receive the same structure created by the `new_CSR` macro but with additional information inherent to the data returned from the SQL request, line by line of the search. request.
+The (required) `argumentName` will receive the same structure created by the `new_CSR` macro but with additional information inherent to the data returned from the SQL request, line by line of the 3
+,2request.
 
 The structure has the following information:
 
@@ -194,7 +199,7 @@ There is no return.
 
 #### Examples
 
-Define a reader function and make a SELECT request.
+Define a reader function and make a *SELECT* request.
 
 ```c
 void myReader (csrObject data)
@@ -203,6 +208,12 @@ void myReader (csrObject data)
 	printf("len: %d\n",  data.len);
 	printf("name: %s\n", data.fetch("name") == NULL ? "NULL" : data.fetch("name"));
 	printf("age: %s\n",  data.fetch("age") == NULL ? "NULL" : data.fetch("age"));
+	
+	/* Example to check if an error occurred: */
+	data.fetch("color");
+	if (data.status() != CSR_OK) {
+		printf("Error: %s\n", data.info());
+	}
 }
 
 varDB.sql("SELECT * FROM tab", myReader);
@@ -228,8 +239,8 @@ For different shortcut functions, different behaviors will be applied to the rep
 
 |Name|Description|
 |:--|:--|
-|column|(required) Column name.|
-|value|(required) Column value.|
+|column|(required) Column name (_string_).|
+|value|(required) Column value (_string_).|
 |where|(required) It is an integer that defines whether the information will be treated within the _SQL WHERE_ declaration (1 to confirm the destination).|
 
 As for the `where` argument, only one information will be treated in this way, the last one recorded.
@@ -243,7 +254,7 @@ To change an entered value, the `column` and `where` arguments must be entered w
 #### Examples
 
 ```c
-varDB.add("age", 26, 0);
+varDB.add("age", "26", 0);
 varDB.add("name", "Mary", 0);
 varDB.add("name", "Mary", 1);
 ```
@@ -251,7 +262,7 @@ varDB.add("name", "Mary", 1);
 Changing the age value:
 
 ```c
-varDB.add("age", 27, 0);
+varDB.add("age", "27", 0);
 ```
 
 The same set of elements will only be considered if the `where` and `column` arguments are the same.
@@ -280,28 +291,75 @@ there are no parameters.
 varDB.clear();
 ```
 
+<!--.........................................................................-->
+
+### select
+
+It is a shortcut function to create a *SELECT* statement from the data registered in the `add` method.
+
+**For more complex declarations, use the `sql` method.**
+
+```c
+int select (char *table, void (*reader)())
+```
+
+#### The Records
+
+All records with the `where` argument disabled will make up the column list in the *SELECT* statement. If none are found, the declaration will cover all columns.
+
+Only the most recent record with the `where` argument enabled will be used in the *WHERE* statement for the purpose of **comparing equality**.
+
+**The value of the `value` argument will only make sense if the `where` argument is turned on.**
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|table|(required) Table name.|
+|reader|(required) Reader function.|
+
+##### Returns
+
+`CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
+
+#### Examples
+
+```c
+varDB.select("tab", myReader);
+```
+
+It will result in: "_SELECT * FROM tab;_"
+
+```c
+varDB.add("age", NULL, 0);
+varDB.add("name", NULL, 0);
+
+varDB.select("tab", myReader);
+```
+
+It will result in: "_SELECT name, age FROM tab;_"
+
+```c
+varDB.add("age", NULL, 0);
+varDB.add("name", NULL, 0);
+varDB.add("age", "12", 1); /* where enabled */
+
+varDB.select("tab", myReader);
+```
+
+It will result in: "_SELECT name, age FROM tab WHERE age = '12';_"
+
+```c
+varDB.add("age", NULL, 0);
+varDB.add("name", NULL, 0);
+varDB.add("age", "12", 1); /* It will be ignored by the next command. */
+varDB.add("name", NULL, 1); /* where enabled */
 
 
+varDB.select("tab", myReader);
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+It will result in: "_SELECT name, age FROM tab WHERE name IS NULL;_"
 
 
 

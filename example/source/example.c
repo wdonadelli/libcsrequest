@@ -8,30 +8,15 @@ int main(int argc, char *argv[]) {
 	//char sql[] = "CREATE TABLE tabela (col1 TEXT, col2 NUMBER);";
 
 	new_CSR(db, "example.db");
-	//db.debug(1);
-	//printf("%d\n", db.sql(sql));
+	db.add("col1", "valor1", 0);
+	db.add("col1", "valor1", 1);
+	db.add("col2", "2", 0);
+	db.add("col2", NULL, 1);
+	db.select("tabela", pquery);
+	
 
-	//if (db.error) printf("Erro: %s\n\n", db.msg);
-	//if (!db.add("col1", "adocica meu amor adocia", 0)) {printf("Erro no add");}
-	//if (!db.add("col2", "2", 0)) {printf("Erro no add");}
-	//if (!db.add("col1", "Música Ruim", 0)) {printf("Erro no add");}
-	//if (!db.add("col2", "9999", 0)) {printf("Erro no add");}
-	//if (!db.add("col2", "NULL", 1)) {printf("Erro no add");}
-	//if (!db.add("col1", "Helena", 0)) {printf("Erro no add");}
 
-//	db.insert("tabela");	
 
-	//printf("%d\n", db.sql("select * from tabela", NULL));
-	//printf("%d\n", db.add("tabela", "li'ndas"));
-	//db.fetch("tabela");
-	printf("%d\n", db.sql("SELECT * FROM tabela", pquery));
-	printf("%d\n", db.select("tabela", pquery));
-	printf("%s\n", db.info());
-	//printf("%d\n", db.select("456"));
-
-	//if (!db.select("tabela", pquery)) {
-	//	printf("Erro: %s\n\n", db.msg);
-	//}
 }
 
 
@@ -44,7 +29,6 @@ void pquery(csrObject x)
 		"col1",
 		x.fetch("col1"),
 		"col2",
-		x.fetch("col2")
+		x.fetch("col22")
 	);*/
-	
 }

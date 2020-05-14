@@ -32,7 +32,7 @@
 #define CSR_DELETE "delete(char *table)"
 #define CSR_ADD    "add(char *column, char *value)"
 #define CSR_CLEAR  "clear()"
-#define CSR_FETCH  "fetch(char *col)"
+#define CSR_FETCH  "fetch(char *column)"
 
 /* mensagem informativa */
 #define CSR_INFO(msg) \
@@ -325,8 +325,10 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 	/* looping: definindo demais valores */
 	while (data != NULL) {
 		if (data->where == 1 && strlen(where) == 0) {
-			where = csr_cat(" WHERE ", data->col, " = ", data->val, NULL);
-		} else {
+			/* obter WHERE se ainda não definido */
+			where = csr_set_where(data->col, data->val);
+		} else if (data->where == 0) {
+			/* ignorar os registros com WHERE e registrar os demais */
 			col = csr_cat(
 				(csr_is_empty(col) ? "" : col),
 				(csr_is_empty(col) ? "" : ", "),
@@ -621,14 +623,21 @@ int __csr_clear__ (csrObject *self)
 
 /*...........................................................................*/
 
-char *__csr_fetch__ (csrObject *self, char *col)
+char *__csr_fetch__ (csrObject *self, char *column)
 {
-	/* definindo prototype */
+	/* definindo prototype e limpando status */
 	csr_prototype = CSR_FETCH;
+	csr_clear_status(self);
 
 	/* variáveis locais */
 	int i;
-	csr_clear_status(self);
+	char *info;
+
+	/* verificar se a coluna foi informada */
+	if (!csr_is_name(column)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_COLUMN);
+		return NULL;
+	}
 
 	/* verificando e redefinindo valores se necessário */
 	if (self->col == NULL || self->val == NULL) {
@@ -644,12 +653,14 @@ char *__csr_fetch__ (csrObject *self, char *col)
 
 	/* looping para encontrar coluna */
 	for(i = 0; i < self->len; i++){
-		if (strcmp(self->col[i], col) == 0) {
+		if (strcmp(self->col[i], column) == 0) {
 			return self->val[i];
 		}
 	}
 
 	/* se nada for encontrado */
+	info = csr_cat("'", column, "' column not found.", NULL);
+	csr_set_status(self, CSR_ERR, info);
 	return NULL;
 }
 
