@@ -223,7 +223,8 @@ static int csr_callback (void *data, int len, char **val, char **col)
 
 int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 {
-	printf("---\n%s\n---\n\n", query);
+	/* Linha para imprimir o argumento query (somente para testes) */
+	//printf("---\n%s\n---\n\n", query);
 
 	/* definindo prototype e limpando status */
 	if (csr_shortcut) {
@@ -324,7 +325,7 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		if (data->where && strlen(where) == 0) {
+		if (data->where && csr_is_empty(where)) {
 			/* obter WHERE se ainda não definido */
 			where = csr_set_where(data->col, data->val);
 		} else if (!data->where) {
@@ -382,6 +383,7 @@ int __csr_insert__ (csrObject *self, char *table)
 	/* looping: definindo demais valores */
 	while (data != NULL) {
 		if (!data->where) {
+			/* ignora os registro com where ligado */
 			col = csr_cat(
 				csr_is_empty(col) ? "" : col,
 				csr_is_empty(col) ? "" : ", ",
@@ -447,9 +449,11 @@ int __csr_update__ (csrObject *self, char *table)
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		if (data->where) {
+		if (data->where && csr_is_empty(where)) {
+			/* obter WHERE se ainda não definido */
 			where = csr_set_where(data->col, data->val);
-		} else {
+		} else if (!data->where) {
+			/* ignorar os registros com WHERE e registrar os demais */
 			set = csr_cat(
 				(csr_is_empty(set) ? "" : set),
 				(csr_is_empty(set) ? "" : ", "),
@@ -512,7 +516,8 @@ int __csr_delete__ (csrObject *self, char *table)
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		if (data->where) {
+		if (data->where && csr_is_empty(where)) {
+			/* obter WHERE se ainda não definido */
 			where = csr_set_where(data->col, data->val);
 		}
 		data = data->next;

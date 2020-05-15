@@ -4,20 +4,6 @@ SCR is a library written in C language designed to simplify requests with an [SQ
 
 The interaction with the database occurs through a structure (type) that points to attributes and methods responsible for the requests.
 
-To import the library use the following header:
-
-```c
-#include "libcsrequest.h"
-```
-
-To compile the source code it is necessary to use the `-l sqlite3` flag (see *libsqlite3-dev* package or equivalent).
-
-GCC example:
-
-```sh
-gcc -c libcsrequest.c -l sqlite3
-```
-
 Next, the construction and use of the tool will be demonstrated.
 
 ## The builder
@@ -295,7 +281,7 @@ varDB.clear();
 
 ### select
 
-It is a shortcut function to create a *SELECT* statement from the data registered in the `add` method.
+It is a shortcut function to create a simplified *SELECT* statement from the data registered in the `add` method.
 
 **For more complex declarations, use the `sql` method.**
 
@@ -328,7 +314,9 @@ Only the most recent record with the `where` argument enabled will be used in th
 varDB.select("tab", myReader);
 ```
 
-_SELECT * FROM tab;_
+```sql
+SELECT * FROM tab;
+```
 
 ```c
 varDB.add("age", NULL, 0);
@@ -337,7 +325,9 @@ varDB.add("name", NULL, 0);
 varDB.select("tab", myReader);
 ```
 
-_SELECT name, age FROM tab;_
+```sql
+SELECT name, age FROM tab;
+```
 
 ```c
 varDB.add("age", NULL, 0);
@@ -347,7 +337,9 @@ varDB.add("age", "12", 1); /* where enabled */
 varDB.select("tab", myReader);
 ```
 
-_SELECT name, age FROM tab WHERE age = '12';_
+```sql
+SELECT name, age FROM tab WHERE age = '12';
+```
 
 ```c
 varDB.add("age", NULL, 0);
@@ -359,255 +351,172 @@ varDB.select("tab", myReader);
 ```
 
 ```sql
-_SELECT name, age FROM tab WHERE name IS NULL;_
+SELECT name, age FROM tab WHERE name IS NULL;
 ```
 
+<!--.........................................................................-->
 
+### insert
 
+It is a shortcut function to create a simplified *INSERT* statement from the data registered in the `add` method.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### Connecting signals
-
-To connect the signals to your handlers, you must use the `uigtk_hadler()` function, whose characteristics are described below:
+**For more complex declarations, use the `sql` method.**
 
 ```c
-#define uigtk_handler(handler)
+int insert (char *table)
 ```
+
+#### The Records
+
+All records with the `where` argument disabled will form the _key/value_ set defined in the _INSERT_ statement.
 
 #### Parameters
 
 |Name|Description|
 |:--|:--|
-|handler|Name of the handler function|
+|table|(required) Table name.|
 
-#### Returns
+##### Returns
 
-Forces the application to exit if any identifiable error is found. Possible errors are:
+`CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
 
-- Call the function before calling the uigtk_init function.
-
-### Start the main loop
-
-To start the main loop, use the `uigtk_main()` function, whose characteristics are described below:
+#### Examples
 
 ```c
-void uigtk_main()
+varDB.add("age", "13", 0);
+varDB.add("name", NULL, 1); /* will be ignored */
+
+varDB.insert("tab");
 ```
-#### Returns
 
-Forces the application to exit if any identifiable error is found. Possible errors are:
+```sql
+INSERT INTO tab (age) VALUES ('13');
 
-- Call the function before calling the uigtk_init function;
-
-At the end of the looping, a new call to the uigtk_init function will be required.
-
-### Example
-
-Considering that the name of the file containing the source code is called "example.c" and that it is in the same directory as the interface file "example.ui", the following sequence of commands will be necessary to build the interface.
-
-Initially it is necessary to include the library header in our source code. Considering that both are in the same directory:
+```
 
 ```c
-#include "libuigtk.h"
+varDB.add("age", "13", 0);
+varDB.add("name", NULL, 0);
+
+varDB.insert("tab");
 ```
 
-As noted in the interface file, there are two defined handlers whose construction needs to be carried out:
+```sql
+INSERT INTO tab (name, age) VALUES (NULL, '13');
 
-```xml
-<signal name="clicked" handler="hello" />
-...
-<signal name="clicked" handler="bye" />
 ```
 
-The prototypes of the functions would look like this:
+<!--.........................................................................-->
+
+### update
+
+It is a shortcut function to create a simplified *UPDATE* statement from the data registered in the `add` method.
+
+**For more complex declarations, use the `sql` method.**
 
 ```c
-void hello(GtkWidget *widget, gpointer data);
-void bye(GtkWidget *widget, gpointer data);
+int update (char *table)
 ```
 
-To start the construction, just call the function to initialize the library indicating the interface file:
+#### The Records
+
+All records with the `where` argument disabled will form the column list in the *UPDATE* statement. If none are found, a `CSR_ERR` will return.
+
+Only the most recent record with the `where` argument enabled will be used in the *WHERE* statement for the purpose of **comparing equality**. If none are found, a `CSR_ERR` will return (to avoid disasters).
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|table|(required) Table name.|
+
+##### Returns
+
+`CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
+
+#### Examples
 
 ```c
-uigtk_init("example.ui");
+varDB.add("age", "25", 0);
+varDB.add("name", "Maria", 0);
+varDB.add("age", "12", 1); /* It will be ignored by the next command. */
+varDB.add("name", "Mary", 1); /* where enabled (last) */
+
+varDB.update("tab");
 ```
 
-After initialization, the manipulators must be connected, according to the signals defined in the interface:
+```sql
+UPDATE tab SET name = 'Maria', age = '25' WHERE name = 'Mary';
+```
+
+<!--.........................................................................-->
+
+### delete
+
+It is a shortcut function to create a simplified *DELETE* statement from the data registered in the `add` method.
+
+**For more complex declarations, use the `sql` method.**
 
 ```c
-uigtk_handler(gtk_main_quit);
-uigtk_handler(hello);
-uigtk_handler(bye);
+int delete (char *table)
 ```
 
-Finally, the main loop must be initialized:
+#### The Records
+
+All records with the `where` argument disabled will be ignored.
+
+Only the most recent record with the `where` argument enabled will be used in the *WHERE* statement for the purpose of **comparing equality**. If none are found, a `CSR_ERR` will return (to avoid disasters).
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|table|(required) Table name.|
+
+##### Returns
+
+`CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
+
+#### Examples
 
 ```c
-uigtk_main();
+varDB.add("age", "25", 0); /* It will be ignored */
+varDB.add("name", "Maria", 0); /* It will be ignored */
+varDB.add("age", "12", 1); /* It will be ignored by the next command. */
+varDB.add("name", NULL, 1); /* where enabled (last) */
+
+varDB.delete("tab");
 ```
 
-Grouping all the information, we have:
-
-```c
-#include "libuigtk.h"
-
-void hello(GtkWidget *widget, gpointer data);
-
-void bye(GtkWidget *widget, gpointer data);
-
-void main(int argc, char *argv[]) {
-
-	/* Interface initialization */
-	uigtk_init("example.ui");
-
-	/* Connecting signals */
-	uigtk_handler(gtk_main_quit);
-	uigtk_handler(hello);
-	uigtk_handler(bye);
-
-	/* Start the main loop */	
-	uigtk_main();
-
-}
+```sql
+DELETE FROM tab WHERE name IS NULL;
 ```
 
-Don't forget to define the actions of the manipulators.
+## Additional Notes
 
-## Compilation
+## Source Code
 
-The library was tested using the following version of gcc:
+- [libcsrequest.h](https://wdonadelli.github.io/libcsrequest/libcsrequest.h)
+- [libcsrequest.c](https://wdonadelli.github.io/libcsrequest/libcsrequest.c)
 
-> gcc (Ubuntu 7.4.0-1ubuntu1~18.04.1) 7.4.0
+## Package
 
-To compile and run the application, the following commands were executed:
+- *libsqlite3-dev* package or equivalent.
+
+## Compilation (GCC) 
+
+To compile the source code it is necessary to use the `-l sqlite3` flag.
 
 ```sh
-gcc `pkg-config --cflags gtk+-3.0` -c libuigtk.c `pkg-config --libs gtk+-3.0`;
-gcc `pkg-config --cflags gtk+-3.0` -c example.c  `pkg-config --libs gtk+-3.0`;
-gcc `pkg-config --cflags gtk+-3.0` -o example example.o libuigtk.o `pkg-config --libs gtk+-3.0`;
-./example;
+gcc -c libcsrequest.c -l sqlite3
 ```
 
-## Tools
+## Versions
 
-The library also has some auxiliary functions in case you need more freedom when designing the interface.
+### v1.0.0 (2020-05-14)
 
-### GTK Builder
+- Initial release.
 
-If you need to access the pointer to the GTK Builder created by the library, the `uigtk_builder()` function must be used, whose characteristics are described below:
-
-```c
-GtkBuilder *uigtk_builder (void)
-```
-
-#### Returns
-
-Returns the pointer to GTK Builder. If you want to link the value to a variable, alternatively, you can use the macro below:
-
-```c
-#define uigtk_set_builder(var)
-```
-
-Where `var` is intended to define the name of the variable to receive the pointer.
-
-### GTK Object
-
-If you need to access the pointer to any interface object ( from its "ID", the `uigtk_object()` function must be used, whose characteristics are described below:
-
-```c
-GObject *uigtk_object (char *id)
-```
-
-#### Parameters
-
-|Name|Description|
-|:--|:--|
-|id|Object ID value|
-
-
-#### Returns
-
-Returns the pointer to object. If you want to link the value to a variable, alternatively, you can use the macro below:
-
-```c
-#define uigtk_set_object(var, id)
-```
-
-Where `var` is intended to define the name of the variable to receive the pointer.
-
-### Dialog
-
-If you need to access the pointer to any interface object ( from its "ID", the `uigtk_dialog()` function must be used, whose characteristics are described below:
-
-```c
-int uigtk_dialog (int type, char *title, char *text)
-```
-
-#### Parameters
-
-|Name|Description|
-|:--|:--|
-|type|Dialog type|
-|title|Box title|
-|text|Textual content|
-
-#### Types
-
-![Interface image](images/screen2.png)
-
-![Interface image](images/screen3.png)
-
-![Interface image](images/screen4.png)
-
-![Interface image](images/screen5.png)
-
-![Interface image](images/screen6.png)
-
-#### Returns
-
-Returns an integer value depending on the answer:
-
-- -1 if the option "no" is chosen;
-- 0 if the box has been closed; and
-- 1 if "yes" or "ok" is chosen.
-
-## Release Notes
-
-### v1.0.0
-
-- Published on 2020-02-22
-
-## Author
+## Authors
 
 - Willian Donadelli (<wdonadelli@gmail.com>)
