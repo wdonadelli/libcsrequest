@@ -494,16 +494,16 @@ DELETE FROM tab WHERE name IS NULL;
 
 ## Additional Notes
 
-## Source Code
+### Source Code
 
 - [libcsrequest.h](https://wdonadelli.github.io/libcsrequest/libcsrequest.h)
 - [libcsrequest.c](https://wdonadelli.github.io/libcsrequest/libcsrequest.c)
 
-## Package
+### Package
 
 - *libsqlite3-dev* package or equivalent.
 
-## Compilation (GCC) 
+### Compilation (GCC) 
 
 To compile the source code it is necessary to use the `-l sqlite3` flag.
 
@@ -511,12 +511,12 @@ To compile the source code it is necessary to use the `-l sqlite3` flag.
 gcc -c libcsrequest.c -l sqlite3
 ```
 
-## Versions
+### Versions
 
-### v1.0.0 (2020-05-14)
+#### v1.0.0 (2020-05-14)
 
 - Initial release.
 
-## Authors
+### Authors
 
 - Willian Donadelli (<wdonadelli@gmail.com>)
