@@ -587,7 +587,7 @@ The `value` argument will be used to define the constraints for each column. Str
 
 ```c
 varDB.add("name", "TEXT NOT NULL", 0);
-varDB.add("age", "NUMBER UNIQUE", 0);
+varDB.add("age", "INTEGER UNIQUE", 0);
 varDB.add("nickname", NULL, 1); /* will be ignored (where = 1)*/
 varDB.add("occupation", NULL, 0);
 
@@ -595,7 +595,7 @@ varDB.create("tab");
 ```
 
 ```sql
-CREATE TABLE tab (occupation, age NUMBER UNIQUE, name TEXT NOT NULL;
+CREATE TABLE tab (occupation, age INTEGER UNIQUE, name TEXT NOT NULL;
 ```
 
 <!--.........................................................................-->
