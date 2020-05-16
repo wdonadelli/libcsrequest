@@ -25,14 +25,17 @@
 #define CSR_EMPTY_QUERY    "Empty SQL statement."
 
 /* macro dos protótipos */
-#define CSR_SQL    "sql(char *query, void (*reader)())"
-#define CSR_SELECT "select(char *table, void (*reader)())"
-#define CSR_INSERT "insert(char *table)"
-#define CSR_UPDATE "update(char *table)"
-#define CSR_DELETE "delete(char *table)"
-#define CSR_ADD    "add(char *column, char *value)"
-#define CSR_CLEAR  "clear()"
-#define CSR_FETCH  "fetch(char *column)"
+#define CSR_SQL     "sql(char *query, void (*reader)())"
+#define CSR_SELECT  "select(char *table, void (*reader)())"
+#define CSR_INSERT  "insert(char *table)"
+#define CSR_REPLACE "replace(char *table)"
+#define CSR_UPDATE  "update(char *table)"
+#define CSR_DELETE  "delete(char *table)"
+#define CSR_CREATE  "create(char *table)"
+#define CSR_DROP    "drop(char *table)"
+#define CSR_ADD     "add(char *column, char *value)"
+#define CSR_CLEAR   "clear()"
+#define CSR_FETCH   "fetch(char *column)"
 
 /* mensagem informativa */
 #define CSR_INFO(msg) \
@@ -102,6 +105,26 @@ static int csr_is_name (char *str)
 		str++;
 	}
 	return 1;
+}
+
+/*...........................................................................*/
+
+static char *csr_constraint(char *val)
+/* retorna o valor de add sem aspas ou NULL se string vazia */
+{
+	/* variáveis iniciais */
+	char *cnst = NULL;
+
+	/* removendo aspas simples das pontas */
+	if (strcmp(val, "NULL") != 0) {
+		cnst = malloc(strlen(val) * sizeof(char));
+		CSR_CHECK_MEMORY(cnst);
+		strcpy(cnst, ++val);
+		cnst[strlen(cnst)-1] = '\0';
+	}
+
+	/* retorna nul se a string é vazia */
+	return (csr_is_empty(cnst) ? NULL : cnst);
 }
 
 /*...........................................................................*/
@@ -224,7 +247,7 @@ static int csr_callback (void *data, int len, char **val, char **col)
 int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 {
 	/* Linha para imprimir o argumento query (somente para testes) */
-	//printf("---\n%s\n---\n\n", query);
+	printf("---\n%s\n---\n\n", query);
 
 	/* definindo prototype e limpando status */
 	if (csr_shortcut) {
@@ -429,6 +452,73 @@ int __csr_insert__ (csrObject *self, char *table)
 
 /*...........................................................................*/
 
+int __csr_replace__ (csrObject *self, char *table)
+{
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_REPLACE;
+	csr_clear_status(self);
+
+	/* variáveis locais */
+	char *col, *val, *query;
+	int result;
+	csrData *data;
+
+	/* defindo valores iniciais */
+	data = malloc(sizeof(csrData));
+	CSR_CHECK_MEMORY(data);
+	data = self->data;
+	col  = "";
+	val  = "";
+
+	/* looping: definindo demais valores */
+	while (data != NULL) {
+		if (!data->where) {
+			/* ignora os registro com where ligado */
+			col = csr_cat(
+				csr_is_empty(col) ? "" : col,
+				csr_is_empty(col) ? "" : ", ",
+				data->col,
+				NULL
+			);
+			val = csr_cat(
+				csr_is_empty(val) ? "" : val,
+				csr_is_empty(val) ? "" : ", ",
+				data->val,
+				NULL
+			);
+		}
+		data = data->next;
+	}
+
+	/* verificando erros */
+	if (self->data == NULL) {
+		csr_set_status(self, CSR_ERR, CSR_SELF_DATA_NULL);
+	} else if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+	} else if (csr_is_empty(col) || csr_is_empty(val)) {
+		csr_set_status(self, CSR_ERR, CSR_BROKEN_SQL);
+	}
+	if (self->status() != CSR_OK) {
+		return self->status();
+	}
+
+	/* construindo query */
+	query = csr_cat(
+		"REPLACE INTO ", table, " (", col, ") VALUES (", val, ");", NULL
+	);
+
+	/* executando query */
+	csr_shortcut = 1;
+	result = self->sql(query, NULL);
+
+	/* liberando memória */
+	free(data);
+
+	return result;
+}
+
+/*...........................................................................*/
+
 int __csr_update__ (csrObject *self, char *table)
 {
 	/* definindo prototype e limpando status */
@@ -546,6 +636,145 @@ int __csr_delete__ (csrObject *self, char *table)
 
 	/* liberando memória */
 	free(data);
+
+	return result;
+}
+
+/*...........................................................................*/
+
+int __csr_create__ (csrObject *self, char *table)
+{
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_CREATE;
+	csr_clear_status(self);
+
+	/* variáveis locais */
+	char *col, *query;
+	int result;
+	csrData *data;
+
+	/* defindo valores iniciais */
+	data = malloc(sizeof(csrData));
+	CSR_CHECK_MEMORY(data);
+	data = self->data;
+	col  = "";
+
+	/* looping: definindo demais valores */
+	while (data != NULL) {
+		if (!data->where) {
+			/* ignora os registro com where ligado */
+			col = csr_cat(
+				csr_is_empty(col) ? "" : col,
+				csr_is_empty(col) ? "" : ", ",
+				data->col,
+				csr_constraint(data->val) == NULL ? "" : " ",
+				csr_constraint(data->val) == NULL ? "" : csr_constraint(data->val),
+				NULL
+			);
+		}
+		data = data->next;
+	}
+
+	/* verificando erros */
+	if (self->data == NULL) {
+		csr_set_status(self, CSR_ERR, CSR_SELF_DATA_NULL);
+	} else if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+	} else if (csr_is_empty(col)) {
+		csr_set_status(self, CSR_ERR, CSR_BROKEN_SQL);
+	}
+	if (self->status() != CSR_OK) {
+		return self->status();
+	}
+
+	/* construindo query */
+	query = csr_cat("CREATE TABLE ", table, " (", col, ");", NULL);
+
+	/* executando query */
+	csr_shortcut = 1;
+	result = self->sql(query, NULL);
+
+	/* liberando memória */
+	free(data);
+
+	return result;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*...........................................................................*/
+
+int __csr_drop__ (csrObject *self, char *table)
+{
+	/* definindo prototype e limpando status */
+	csr_prototype = CSR_DROP;
+	csr_clear_status(self);
+
+	/* variáveis locais */
+	char *query;
+	int result;
+
+	/* verificando erros */
+	if (!csr_is_name(table)) {
+		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+		return self->status();
+	}
+
+	/* construindo query */
+	query = csr_cat("DROP TABLE ", table, ";", NULL);
+
+	/* executando query */
+	csr_shortcut = 1;
+	result = self->sql(query, NULL);
 
 	return result;
 }

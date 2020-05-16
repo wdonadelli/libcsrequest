@@ -1,5 +1,5 @@
 /*-----------------------------------------------------------------------------
-Library CSRequest (v1.0.0) <wdonadelli@gmail.com>
+Library CSRequest (v1.1.0) <wdonadelli@gmail.com>
 
 This is a library written in C language designed to simplify requests to the
 SQLite database.
@@ -73,9 +73,12 @@ SOFTWARE.
 		/*-- Métodos acessíveis ao usuário --*/
 		int (*sql)();     /* executa uma instrução SQL */
 		int (*insert)();  /* constrói uma instrução INSERT (ver método add) */
+		int (*replace)(); /* constrói uma instrução REPLACE (ver método add) */
 		int (*update)();  /* constrói uma instrução UPDATE (ver método add) */
 		int (*delete)();  /* constrói uma instrução DELETE (ver método add) */
 		int (*select)();  /* constrói uma instrução SELECT (ver método add) */
+		int (*create)();  /* constrói uma instrução CREATE TABLE (ver método add) */
+		int (*drop)();    /* constrói uma instrução DROP TABLE */
 		int (*add)();     /* registra informações para contrutores acima */
 		int (*clear)();   /* apaga registros (ver método add) */
 		char *(*fetch)(); /* retorna o valor da coluna (ver método sql) */
@@ -141,6 +144,20 @@ SOFTWARE.
 		SELF.insert = __csr_insert__##SELF;     \
 
 /*-----------------------------------------------------------------------------
+	__csr_replace__ () constrói uma instrução REPLACE e a executa a partir das
+	informações de registros adicionados pelo método add()
+	table: string contendo o nome da tabela
+-----------------------------------------------------------------------------*/
+	int __csr_replace__ (csrObject *self, char *table);
+
+	#define __CSR_REPLACE__(SELF)               \
+		int __csr_replace__##SELF (char *table)  \
+		{                                        \
+			return __csr_replace__(&SELF, table); \
+		}                                        \
+		SELF.replace = __csr_replace__##SELF;    \
+
+/*-----------------------------------------------------------------------------
 	__csr_update__ () constrói uma instrução UPDATE e a executa a partir das
 	informações de registros adicionados pelo método add()
 	table: string contendo o nome da tabela
@@ -167,6 +184,36 @@ SOFTWARE.
 			return __csr_delete__(&SELF, table); \
 		}                                       \
 		SELF.delete = __csr_delete__##SELF;     \
+
+
+
+
+/*-----------------------------------------------------------------------------
+	__csr_drop__ () constrói uma instrução DROP TABLE
+	table: string contendo o nome da tabela
+-----------------------------------------------------------------------------*/
+	int __csr_drop__ (csrObject *self, char *table);
+
+	#define __CSR_DROP__(SELF)               \
+		int __csr_drop__##SELF (char *table)  \
+		{                                     \
+			return __csr_drop__(&SELF, table); \
+		}                                     \
+		SELF.drop = __csr_drop__##SELF;       \
+
+/*-----------------------------------------------------------------------------
+	__csr_create__ () constrói uma instrução CREATE TABLE e a executa a partir
+	das informações de registros adicionados pelo método add()
+	table: string contendo o nome da tabela
+-----------------------------------------------------------------------------*/
+	int __csr_create__ (csrObject *self, char *table);
+
+	#define __CSR_CREATE__(SELF)               \
+		int __csr_create__##SELF (char *table)  \
+		{                                       \
+			return __csr_create__(&SELF, table); \
+		}                                       \
+		SELF.create = __csr_create__##SELF;     \
 
 /*-----------------------------------------------------------------------------
 	__csr_select__ () constrói uma instrução SELECT e a executa a partir das
@@ -280,9 +327,12 @@ SOFTWARE.
                                  \
 		__CSR_SQL__(OBJECT);       \
 		__CSR_INSERT__(OBJECT);    \
+		__CSR_REPLACE__(OBJECT);   \
 		__CSR_UPDATE__(OBJECT);    \
 		__CSR_DELETE__(OBJECT);    \
 		__CSR_SELECT__(OBJECT);    \
+		__CSR_CREATE__(OBJECT);    \
+		__CSR_DROP__(OBJECT);      \
 		__CSR_ADD__(OBJECT);       \
 		__CSR_CLEAR__(OBJECT);     \
 		__CSR_FETCH__(OBJECT);     \
