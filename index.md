@@ -59,6 +59,12 @@ Three values (integer) ​​are possible:
 
 `CSR_FAIL`: There was an error connecting to the database or the SQL request.
 
+#### Example
+
+```c
+varDB.status();
+```
+
 <!--.........................................................................-->
 
 ### info
@@ -76,6 +82,14 @@ there are no parameters.
 ##### Returns
 
 Two types of returns can occur. If the request returns `CSR_OK`, a blank string is returned. In the case of return `CSR_ERR` and `CSR_FAIL`, the respective message will be returned.
+
+#### Example
+
+```c
+if (varDB.status() != CSR_OK) {
+	printf("Info: %s\n", varDB.info());
+}
+```
 
 <!--.........................................................................-->
 
@@ -96,6 +110,14 @@ void debug (int val)
 ##### Returns
 
 There is no return.
+
+#### Example
+
+```c
+varDB.debug(0); /* turn off */
+varDB.debug(1); /* turn on */
+
+```
 
 <!--.........................................................................-->
 
@@ -119,6 +141,10 @@ Returns `NULL` if the column value is null, if the informed column does not exis
 
 If the reported column does not exist, an error of type `CSR_ERR` will be logged. This fact can be verified by the `info` and `status` methods.
 
+#### Example
+
+See Reader Function section.
+
 <!--.........................................................................-->
 
 ### sql
@@ -140,12 +166,12 @@ int sql (char *query, void (*reader)())
 
 `CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
 
-#### Examples
+#### Example
 
-Create a table called "tab" with two columns, "age" (NUMBER) and "name" (TEXT):
+Create a table called "tab" with two columns, "age" (INTEGER) and "name" (TEXT):
 
 ```c
-varDB.sql("CREATE TABLE tab (age NUMBER, name TEXT;", NULL));
+varDB.sql("CREATE TABLE tab (age INTEGER, name TEXT;", NULL));
 ```
 
 <!--.........................................................................-->
@@ -183,7 +209,7 @@ Returns the number of columns (from 1).
 
 There is no return.
 
-#### Examples
+#### Example
 
 Define a reader function and make a *SELECT* request.
 
@@ -237,7 +263,7 @@ To change an entered value, the `column` and `where` arguments must be entered w
 
 `CSR_OK`or `CSR_ERR`.
 
-#### Examples
+#### Example
 
 ```c
 varDB.add("age", "26", 0);
@@ -271,7 +297,7 @@ there are no parameters.
 
 `CSR_OK`or `CSR_ERR`.
 
-#### Examples
+#### Example
 
 ```c
 varDB.clear();
@@ -281,7 +307,7 @@ varDB.clear();
 
 ### select
 
-It is a shortcut function to create a simplified *SELECT* statement from the data registered in the `add` method.
+It is a shortcut function to create a simplified [SELECT](https://www.sqlite.org/lang_select.html) statement from the data registered in the `add` method.
 
 **For more complex declarations, use the `sql` method.**
 
@@ -308,7 +334,7 @@ Only the most recent record with the `where` argument enabled will be used in th
 
 `CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
 
-#### Examples
+#### Example
 
 ```c
 varDB.select("tab", myReader);
@@ -358,7 +384,7 @@ SELECT name, age FROM tab WHERE name IS NULL;
 
 ### insert
 
-It is a shortcut function to create a simplified *INSERT* statement from the data registered in the `add` method.
+It is a shortcut function to create a simplified [INSERT](https://www.sqlite.org/lang_insert.html) statement from the data registered in the `add` method.
 
 **For more complex declarations, use the `sql` method.**
 
@@ -380,7 +406,7 @@ All records with the `where` argument disabled will form the _key/value_ set def
 
 `CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
 
-#### Examples
+#### Example
 
 ```c
 varDB.add("age", "13", 0);
@@ -391,7 +417,6 @@ varDB.insert("tab");
 
 ```sql
 INSERT INTO tab (age) VALUES ('13');
-
 ```
 
 ```c
@@ -403,14 +428,52 @@ varDB.insert("tab");
 
 ```sql
 INSERT INTO tab (name, age) VALUES (NULL, '13');
+```
 
+<!--.........................................................................-->
+
+### replace
+
+It is a shortcut function to create a simplified [REPLACE](https://www.sqlite.org/lang_replace.html) statement from the data registered in the `add` method.
+
+**For more complex declarations, use the `sql` method.**
+
+```c
+int replace (char *table)
+```
+
+#### The Records
+
+It has the same operation as the `insert` method.
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|table|(required) Table name.|
+
+##### Returns
+
+`CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
+
+#### Example
+
+```c
+varDB.add("age", "13", 0);
+varDB.add("name", NULL, 0);
+
+varDB.replace("tab");
+```
+
+```sql
+REPLACE INTO tab (name, age) VALUES (NULL, '13');
 ```
 
 <!--.........................................................................-->
 
 ### update
 
-It is a shortcut function to create a simplified *UPDATE* statement from the data registered in the `add` method.
+It is a shortcut function to create a simplified [UPDATE](https://www.sqlite.org/lang_update.html) statement from the data registered in the `add` method.
 
 **For more complex declarations, use the `sql` method.**
 
@@ -434,7 +497,7 @@ Only the most recent record with the `where` argument enabled will be used in th
 
 `CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
 
-#### Examples
+#### Example
 
 ```c
 varDB.add("age", "25", 0);
@@ -453,7 +516,7 @@ UPDATE tab SET name = 'Maria', age = '25' WHERE name = 'Mary';
 
 ### delete
 
-It is a shortcut function to create a simplified *DELETE* statement from the data registered in the `add` method.
+It is a shortcut function to create a simplified [DELETE](https://www.sqlite.org/lang_delete.html) statement from the data registered in the `add` method.
 
 **For more complex declarations, use the `sql` method.**
 
@@ -477,7 +540,7 @@ Only the most recent record with the `where` argument enabled will be used in th
 
 `CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
 
-#### Examples
+#### Example
 
 ```c
 varDB.add("age", "25", 0); /* It will be ignored */
@@ -491,6 +554,87 @@ varDB.delete("tab");
 ```sql
 DELETE FROM tab WHERE name IS NULL;
 ```
+
+<!--.........................................................................-->
+
+### create
+
+It is a shortcut function to create a simplified [CREATE TABLE](https://www.sqlite.org/lang_createtable.html) statement from the data registered in the `add` method.
+
+**For more complex declarations, use the `sql` method.**
+
+```c
+int create (char *table)
+```
+
+#### The Records
+
+All records with the `where` argument disabled will form the _key/value_ set defined in the _CREATE TABLE_ statement.
+
+The `value` argument will be used to define the constraints for each column. Strange values ​​cause strange results.
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|table|(required) Table name.|
+
+##### Returns
+
+`CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
+
+#### Example
+
+```c
+varDB.add("name", "TEXT NOT NULL", 0);
+varDB.add("age", "NUMBER UNIQUE", 0);
+varDB.add("nickname", NULL, 1); /* will be ignored (where = 1)*/
+varDB.add("occupation", NULL, 0);
+
+varDB.create("tab");
+```
+
+```sql
+CREATE TABLE tab (occupation, age NUMBER UNIQUE, name TEXT NOT NULL;
+```
+
+<!--.........................................................................-->
+
+### drop
+
+It is a shortcut function to create a simplified [DROP TABLE](https://www.sqlite.org/lang_droptable.html) statement.
+
+**For more complex declarations, use the `sql` method.**
+
+```c
+int drop (char *table)
+```
+
+#### The Records
+
+All records will be ignored.
+
+#### Parameters
+
+|Name|Description|
+|:--|:--|
+|table|(required) Table name.|
+
+##### Returns
+
+`CSR_OK`, `CSR_ERR` or `CSR_FAIL`.
+
+#### Example
+
+```c
+varDB.drop("tab");
+```
+
+```sql
+DROP TABLE tab;
+```
+
+<!--.........................................................................-->
 
 ## Additional Notes
 
@@ -516,6 +660,12 @@ gcc -c libcsrequest.c -l sqlite3
 #### v1.0.0 (2020-05-14)
 
 - Initial release.
+
+#### v1.1.0 (2020-05-16)
+
+- added "create" method
+- added "drop" method
+- added "replace" method
 
 ### Authors
 

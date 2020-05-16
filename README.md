@@ -31,6 +31,12 @@ gcc -c libcsrequest.c -l sqlite3
 
 - Initial release.
 
+### v1.1.0 (2020-05-16)
+
+- added "create" method
+- added "drop" method
+- added "replace" method
+
 ## Authors
 
 - Willian Donadelli (<wdonadelli@gmail.com>)
