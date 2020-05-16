@@ -595,7 +595,7 @@ varDB.create("tab");
 ```
 
 ```sql
-CREATE TABLE tab (occupation, age INTEGER UNIQUE, name TEXT NOT NULL;
+CREATE TABLE tab (occupation, age INTEGER UNIQUE, name TEXT NOT NULL);
 ```
 
 <!--.........................................................................-->
