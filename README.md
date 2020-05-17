@@ -25,11 +25,7 @@ To compile the source code it is necessary to use the `-l sqlite3` flag.
 gcc -c libcsrequest.c -l sqlite3
 ```
 
-## Versions
-
-### v1.0.0 (2020-05-14)
-
-- Initial release.
+## Version
 
 ### v1.1.0 (2020-05-16)
 
