@@ -1,5 +1,5 @@
 /*-----------------------------------------------------------------------------
-Library CSRequest (v1.1.0) <wdonadelli@gmail.com>
+Library CSRequest (v1.2.0) <wdonadelli@gmail.com>
 
 This is a library written in C language designed to simplify requests to the
 SQLite database.
@@ -85,6 +85,7 @@ SOFTWARE.
 		int (*status)();  /* retorna o status da última solicitação */
 		char *(*info)();  /* retorna a mensagem da última solicitação */
 		void (*debug)();  /* liga/desliga a depuração */
+		void (*free)();   /* libera memória */
 		
 		/*-- Métodos/Atributos inacessíveis ao usuário --*/
 		void (*reader)();      /* guarda a função de pesquisa */
@@ -303,10 +304,21 @@ SOFTWARE.
 	#define __CSR_DEBUG__(SELF)             \
 		void __csr_debug__##SELF (int val)   \
 		{                                    \
-			return __csr_debug__(&SELF, val); \
+			__csr_debug__(&SELF, val); \
 		}                                    \
 		SELF.debug = __csr_debug__##SELF;    \
 
+/*-----------------------------------------------------------------------------
+	__csr_free__ () libera memória
+-----------------------------------------------------------------------------*/
+	void __csr_free__ (csrObject *self);
+
+	#define __CSR_FREE__(SELF)         \
+		void __csr_free__##SELF ()      \
+		{                               \
+			__csr_free__(&SELF);  \
+		}                               \
+		SELF.free = __csr_free__##SELF; \
 
 /*-----------------------------------------------------------------------------
 	new_CSR () construtor da estrutura
@@ -315,7 +327,7 @@ SOFTWARE.
                                  \
 		csrObject OBJECT;		      \
 		OBJECT.file    = FILE;     \
-		OBJECT.message = "";       \
+		OBJECT.message = NULL;     \
 		OBJECT.code    = CSR_OK;   \
 		OBJECT.print   = 1;        \
 		OBJECT.row     = 0;        \
@@ -339,5 +351,6 @@ SOFTWARE.
 		__CSR_STATUS__(OBJECT);    \
 		__CSR_INFO__(OBJECT);      \
 		__CSR_DEBUG__(OBJECT);     \
+		__CSR_FREE__(OBJECT);      \
 
 #endif
