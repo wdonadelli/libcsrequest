@@ -181,7 +181,7 @@ static char *csr_set_where (char *col, char *val)
 
 /*...........................................................................*/
 
-static void csr_set_status (csrObject *self, int code, const char *msg)
+static void csr_set_status (csrObject *self, int code, char *msg)
 /* define o valor dos atributos code e message */
 {
 
@@ -198,9 +198,8 @@ static void csr_set_status (csrObject *self, int code, const char *msg)
 	}
 
 	/* definindo a mensagem */
-	self->message = malloc((strlen(msg == NULL ? "" : msg) + 1) * sizeof(char));
-	CSR_CHECK_MEMORY(self->message);
-	strcpy(self->message, msg == NULL ? "" : msg);
+	if (self->message != NULL) {free(self->message);}
+	self->message = msg == NULL ? NULL : csr_cat(msg, NULL);
 	return;
 }
 
@@ -209,7 +208,7 @@ static void csr_set_status (csrObject *self, int code, const char *msg)
 static void csr_clear_status (csrObject *self)
 /* reinicia o status */
 {
-	csr_set_status(self, CSR_OK, "");
+	csr_set_status(self, CSR_OK, NULL);
 	return;
 }
 
@@ -224,7 +223,7 @@ static int csr_callback (void *data, int len, char **val, char **col)
 	/* verificando reader */
 	if (self->reader == NULL) {
 		csr_set_status(self, CSR_ERR, CSR_NO_CALLBACK);
-		return 1;
+		return self->status();
 	}
 	
 	/* definindo valores */
@@ -247,7 +246,7 @@ static int csr_callback (void *data, int len, char **val, char **col)
 int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 {
 	/* Linha para imprimir o argumento query (somente para testes) */
-	printf("---\n%s\n---\n\n", query);
+	//printf("---\n%s\n---\n\n", query);//FIXME tenho que comentar essa linha
 
 	/* definindo prototype e limpando status */
 	if (csr_shortcut) {
@@ -283,7 +282,7 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 
 	/* verificando sucesso no procedimento anterior */
 	if (open != SQLITE_OK) {
-		csr_set_status(self, CSR_FAIL, sqlite3_errmsg(db));
+		csr_set_status(self, CSR_FAIL, (char *) sqlite3_errmsg(db));
 		return self->status();
 	}
 
@@ -300,17 +299,23 @@ int __csr_sql__ (csrObject *self, char *query, void (*reader)())
 
 	/* verificar sucesso no procedimento anterior */
 	if (exec == SQLITE_OK) {
+
+		/* fechar banco em caso de sucesso */
 		if (sqlite3_close(db) != SQLITE_OK) {
 			csr_set_status(self, CSR_FAIL, error);
 		}
+
+		/* zerar registros no caso de função de atalho sem erro */
 		if (strcmp(csr_prototype, CSR_SQL) != 0) {
-			/* zerar os registros no caso de função de atalho sem erro */
 			self->clear();
 		}
+
 	} else if (self->status() == CSR_ERR) {
+		/* fechar banco em caso de erro (sem verificar sucesso) */
 		sqlite3_close(db);
 	} else {
 		csr_set_status(self, CSR_FAIL, error);
+		/*fechar banco em caso de falha (sem verificar sucesso) */
 		sqlite3_close(db);
 	}
 
@@ -329,36 +334,41 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 	csr_clear_status(self);
 
 	/* variáveis locais */
-	char *col, *where, *query;
+	csrData *data = self->data;
+	char *query   = NULL;
+	char *col     = NULL;
+	char *where   = NULL;
+	char *trash1  = NULL;
 	int result;
-	csrData *data;
 
 	/* testando informações */
 	if (!csr_is_name(table)) {
 		csr_set_status(self, CSR_ERR, CSR_INVALID_TABLE);
+	} else if (reader == NULL) {
+		csr_set_status(self, CSR_ERR, CSR_NO_CALLBACK);
+	}
+	if (self->status() != CSR_OK) {
 		return self->status();
 	}
 
-	/* defindo valores iniciais */
-	data = malloc(sizeof(csrData));
-	CSR_CHECK_MEMORY(data);
-	data  = self->data;
-	col   = "";
-	where = "";
-
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		if (data->where && csr_is_empty(where)) {
-			/* obter WHERE se ainda não definido */
-			where = csr_set_where(data->col, data->val);
-		} else if (!data->where) {
-			/* ignorar os registros com WHERE e registrar os demais */
+		if (!data->where) {
+			/* o que não for WHERE, registrar */
 			col = csr_cat(
 				(csr_is_empty(col) ? "" : col),
 				(csr_is_empty(col) ? "" : ", "),
 				data->col,
 				NULL
 			);
+
+			/* liberando memória e guardando ponteiro */
+			if (trash1 != NULL) {free(trash1);}
+			trash1 = col;
+
+		} else if (csr_is_empty(where)) {
+			/* se for WHERE e ainda não estiver definido, registrar */
+			where = csr_set_where(data->col, data->val);
 		}
 		data = data->next;
 	}
@@ -377,9 +387,10 @@ int __csr_select__ (csrObject *self, char *table, void (*reader)())
 	csr_shortcut = 1;
 	result = self->sql(query, reader);
 
-	/* liberando memória */
-	free(data);
-
+	/* liberando memória e retornando */
+	if (query != NULL) {free(query);}
+	if (col   != NULL) {free(col);}
+	if (where != NULL) {free(where);}
 	return result;
 }
 
@@ -392,16 +403,13 @@ int __csr_insert__ (csrObject *self, char *table)
 	csr_clear_status(self);
 
 	/* variáveis locais */
-	char *col, *val, *query;
+	csrData *data = self->data;
+	char *query   = NULL;
+	char *col     = NULL;
+	char *val     = NULL;
+	char *trash1  = NULL;
+	char *trash2  = NULL;
 	int result;
-	csrData *data;
-
-	/* defindo valores iniciais */
-	data = malloc(sizeof(csrData));
-	CSR_CHECK_MEMORY(data);
-	data = self->data;
-	col  = "";
-	val  = "";
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
@@ -419,6 +427,12 @@ int __csr_insert__ (csrObject *self, char *table)
 				data->val,
 				NULL
 			);
+
+			/* liberando memória e guardando ponteiro provisório */
+			if (trash1  != NULL) {free(trash1);}
+			if (trash2  != NULL) {free(trash2);}
+			trash1 = col;
+			trash2 = val;
 		}
 		data = data->next;
 	}
@@ -431,7 +445,12 @@ int __csr_insert__ (csrObject *self, char *table)
 	} else if (csr_is_empty(col) || csr_is_empty(val)) {
 		csr_set_status(self, CSR_ERR, CSR_BROKEN_SQL);
 	}
+
+	/* em caso de erro, liberar memória e retornar */
 	if (self->status() != CSR_OK) {
+		if (query != NULL) {free(query);}
+		if (col   != NULL) {free(col);}
+		if (val   != NULL) {free(val);}
 		return self->status();
 	}
 
@@ -440,13 +459,14 @@ int __csr_insert__ (csrObject *self, char *table)
 		"INSERT INTO ", table, " (", col, ") VALUES (", val, ");", NULL
 	);
 
-	/* executando query */
+	/* executando query e obterndo o retorno */
 	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
-	/* liberando memória */
-	free(data);
-
+	/* liberando memória e retornando */
+	if (query != NULL) {free(query);}
+	if (col   != NULL) {free(col);}
+	if (val   != NULL) {free(val);}
 	return result;
 }
 
@@ -459,16 +479,13 @@ int __csr_replace__ (csrObject *self, char *table)
 	csr_clear_status(self);
 
 	/* variáveis locais */
-	char *col, *val, *query;
+	csrData *data = self->data;
+	char *query   = NULL;
+	char *col     = NULL;
+	char *val     = NULL;
+	char *trash1  = NULL;
+	char *trash2  = NULL;
 	int result;
-	csrData *data;
-
-	/* defindo valores iniciais */
-	data = malloc(sizeof(csrData));
-	CSR_CHECK_MEMORY(data);
-	data = self->data;
-	col  = "";
-	val  = "";
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
@@ -486,6 +503,12 @@ int __csr_replace__ (csrObject *self, char *table)
 				data->val,
 				NULL
 			);
+
+			/* liberando memória e guardando ponteiro provisório */
+			if (trash1 != NULL) {free(trash1);}
+			if (trash2 != NULL) {free(trash2);}
+			trash1 = col;
+			trash2 = val;
 		}
 		data = data->next;
 	}
@@ -498,7 +521,12 @@ int __csr_replace__ (csrObject *self, char *table)
 	} else if (csr_is_empty(col) || csr_is_empty(val)) {
 		csr_set_status(self, CSR_ERR, CSR_BROKEN_SQL);
 	}
+
+	/* em caso de erro, liberar memória e retornar */
 	if (self->status() != CSR_OK) {
+		if (query != NULL) {free(query);}
+		if (col   != NULL) {free(col);}
+		if (val   != NULL) {free(val);}
 		return self->status();
 	}
 
@@ -511,9 +539,10 @@ int __csr_replace__ (csrObject *self, char *table)
 	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
-	/* liberando memória */
-	free(data);
-
+	/* liberando memória e retornando */
+	if (query != NULL) {free(query);}
+	if (col   != NULL) {free(col);}
+	if (val   != NULL) {free(val);}
 	return result;
 }
 
@@ -526,24 +555,17 @@ int __csr_update__ (csrObject *self, char *table)
 	csr_clear_status(self);
 
 	/* variáveis locais */
-	char *set, *where, *query;
+	csrData *data = self->data;
+	char *query   = NULL;
+	char *set     = NULL;
+	char *where   = NULL;
+	char *trash1  = NULL;
 	int result;
-	csrData *data;
-
-	/* defindo valores iniciais */
-	data = malloc(sizeof(csrData));
-	CSR_CHECK_MEMORY(data);
-	data  = self->data;
-	set   = "";
-	where = "";
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		if (data->where && csr_is_empty(where)) {
-			/* obter WHERE se ainda não definido */
-			where = csr_set_where(data->col, data->val);
-		} else if (!data->where) {
-			/* ignorar os registros com WHERE e registrar os demais */
+		if (!data->where) {
+			/* se não for WHERE, pegar o valor */
 			set = csr_cat(
 				(csr_is_empty(set) ? "" : set),
 				(csr_is_empty(set) ? "" : ", "),
@@ -552,6 +574,14 @@ int __csr_update__ (csrObject *self, char *table)
 				data->val,
 				NULL
 			);
+
+			/* liberando memória e guardando ponteiro */
+			if (trash1 != NULL) {free(trash1);}
+			trash1 = set;
+
+		} else if (csr_is_empty(where)) {
+			/* se for WHERE e ainda não estiver definido, pegar o valor */
+			where = csr_set_where(data->col, data->val);
 		}
 		data = data->next;
 	}
@@ -566,7 +596,12 @@ int __csr_update__ (csrObject *self, char *table)
 	} else if (csr_is_empty(where)) {
 		csr_set_status(self, CSR_ERR, CSR_NO_WHERE);
 	}
+
+	/* em caso de erro, liberar memória e retornar */
 	if (self->status() != CSR_OK) {
+		if (query != NULL) {free(query);}
+		if (set   != NULL) {free(set);}
+		if (where != NULL) {free(where);}
 		return self->status();
 	}
 
@@ -579,9 +614,10 @@ int __csr_update__ (csrObject *self, char *table)
 	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
-	/* liberando memória */
-	free(data);
-
+	/* liberando memória e retornando */
+	if (query != NULL) {free(query);}
+	if (set   != NULL) {free(set);}
+	if (where != NULL) {free(where);}
 	return result;
 }
 
@@ -594,20 +630,18 @@ int __csr_delete__ (csrObject *self, char *table)
 	csr_clear_status(self);
 
 	/* variáveis locais */
-	char *where, *query;
+	csrData *data = self->data;
+	char *query   = NULL;
+	char *where   = NULL;
 	int result;
-	csrData *data;
-
-	/* defindo valores iniciais */
-	data = malloc(sizeof(csrData));
-	CSR_CHECK_MEMORY(data)
-	data  = self->data;
-	where = "";
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
-		if (data->where && csr_is_empty(where)) {
-			/* obter WHERE se ainda não definido */
+		if (!csr_is_empty(where)) {
+			/* se o WHERE já tiver definido, sai do looping */
+			break;
+		} else if (data->where) {
+			/* se for WHERE, pega o valor */
 			where = csr_set_where(data->col, data->val);
 		}
 		data = data->next;
@@ -621,7 +655,11 @@ int __csr_delete__ (csrObject *self, char *table)
 	} else if (csr_is_empty(where)) {
 		csr_set_status(self, CSR_ERR, CSR_NO_WHERE);
 	}
+
+	/* em caso de erro, liberar memória e retornar */
 	if (self->status() != CSR_OK) {
+		if (query != NULL) {free(query);}
+		if (where != NULL) {free(where);}
 		return self->status();
 	}
 
@@ -634,9 +672,9 @@ int __csr_delete__ (csrObject *self, char *table)
 	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
-	/* liberando memória */
-	free(data);
-
+	/* liberando memória e retornando */
+	if (query != NULL) {free(query);}
+	if (where != NULL) {free(where);}
 	return result;
 }
 
@@ -649,28 +687,32 @@ int __csr_create__ (csrObject *self, char *table)
 	csr_clear_status(self);
 
 	/* variáveis locais */
-	char *col, *query;
+	csrData *data = self->data;
+	char *query   = NULL;
+	char *col     = NULL;
+	char *trash1  = NULL;
+	char *cnstrnt = NULL;
 	int result;
-	csrData *data;
-
-	/* defindo valores iniciais */
-	data = malloc(sizeof(csrData));
-	CSR_CHECK_MEMORY(data);
-	data = self->data;
-	col  = "";
 
 	/* looping: definindo demais valores */
 	while (data != NULL) {
 		if (!data->where) {
 			/* ignora os registro com where ligado */
+			cnstrnt = csr_constraint(data->val);
 			col = csr_cat(
 				csr_is_empty(col) ? "" : col,
 				csr_is_empty(col) ? "" : ", ",
 				data->col,
-				csr_constraint(data->val) == NULL ? "" : " ",
-				csr_constraint(data->val) == NULL ? "" : csr_constraint(data->val),
+				cnstrnt == NULL ? "" : " ",
+				cnstrnt == NULL ? "" : cnstrnt,
 				NULL
 			);
+			/* liberando memória */
+			free(cnstrnt);
+
+			/* liberando memória e guardando ponteiro provisório */
+			if (trash1 != NULL) {free(trash1);}
+			trash1 = col;
 		}
 		data = data->next;
 	}
@@ -683,7 +725,11 @@ int __csr_create__ (csrObject *self, char *table)
 	} else if (csr_is_empty(col)) {
 		csr_set_status(self, CSR_ERR, CSR_BROKEN_SQL);
 	}
+
+	/* em caso de erro, liberar memória e retornar */
 	if (self->status() != CSR_OK) {
+		if (query != NULL) {free(query);}
+		if (col   != NULL) {free(col);}
 		return self->status();
 	}
 
@@ -694,62 +740,11 @@ int __csr_create__ (csrObject *self, char *table)
 	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
-	/* liberando memória */
-	free(data);
-
+	/* liberando memória e retornando */
+	if (query != NULL) {free(query);}
+	if (col   != NULL) {free(col);}
 	return result;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /*...........................................................................*/
 
@@ -760,7 +755,7 @@ int __csr_drop__ (csrObject *self, char *table)
 	csr_clear_status(self);
 
 	/* variáveis locais */
-	char *query;
+	char *query = NULL;
 	int result;
 
 	/* verificando erros */
@@ -776,6 +771,8 @@ int __csr_drop__ (csrObject *self, char *table)
 	csr_shortcut = 1;
 	result = self->sql(query, NULL);
 
+	/* liberando memória e retornando */
+	if (query != NULL) {free(query);}
 	return result;
 }
 
@@ -807,8 +804,16 @@ int __csr_add__ (csrObject *self, char *column, char *value, int where)
 	/* verificando se já existe coluna informada e redefinir valores */
 	data = self->data;
 	while(data) {
-		if (data->col == column && data->where == where) {
-			data->val = value == NULL ? "NULL" : csr_cat("'", value, "'", NULL);
+		if (strcmp(data->col, column) == 0 && data->where == where) {
+			/* liberando memória do valor anterior */
+			free(data->val);
+			
+			/* definindo novo valor */
+			if (value == NULL) {
+				data->val = csr_cat("NULL", NULL);
+			} else {
+				data->val = csr_cat("'", value, "'", NULL);
+			}
 			break;
 		}
 		data = data->next;
@@ -819,8 +824,12 @@ int __csr_add__ (csrObject *self, char *column, char *value, int where)
 		data = malloc(sizeof(csrData));
 		CSR_CHECK_MEMORY(data);
 		data->where = where;
-		data->col   = column;
-		data->val   = value == NULL ? "NULL" : csr_cat("'", value, "'", NULL);
+		data->col = csr_cat(column, NULL);
+		if (value == NULL) {
+			data->val = csr_cat("NULL", NULL);
+		} else {
+			data->val = csr_cat("'", value, "'", NULL);
+		}
 		data->next  = self->data;
 		self->data  = data;
 	}
@@ -837,7 +846,6 @@ int __csr_clear__ (csrObject *self)
 	csr_clear_status(self);
 
 	/* definindo variáveis locais */
-	csr_clear_status(self);
 	csrData *data, *old;
 	data = self->data;
 
@@ -846,6 +854,8 @@ int __csr_clear__ (csrObject *self)
 		data->where = 0;
 		old  = data;
 		data = data->next;
+		free(old->col);
+		free(old->val);
 		free(old);
 	}
 
@@ -894,6 +904,7 @@ char *__csr_fetch__ (csrObject *self, char *column)
 	/* se nada for encontrado */
 	info = csr_cat("'", column, "' column not found.", NULL);
 	csr_set_status(self, CSR_ERR, info);
+	free(info);
 	return NULL;
 }
 
@@ -917,4 +928,12 @@ void __csr_debug__ (csrObject *self, int val)
 {
 	self->print = val == 0 ? 0 : 1;
 	return;
+}
+
+/*...........................................................................*/
+
+void __csr_free__ (csrObject *self)
+{
+	csr_clear_status(self);
+	self->clear();
 }

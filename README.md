@@ -27,11 +27,12 @@ gcc -c libcsrequest.c -l sqlite3
 
 ## Version
 
-### v1.1.0 (2020-05-16)
+#### v1.2.0 (2020-05-21)
 
-- added "create" method
-- added "drop" method
-- added "replace" method
+- added "free" method
+- improvement of the allocated memory release system
+- changed the return of the "info" method (from "" to NULL)
+- fixed sql display error in terminal
 
 ## Authors
 

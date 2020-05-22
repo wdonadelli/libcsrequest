@@ -81,7 +81,7 @@ there are no parameters.
 
 ##### Returns
 
-Two types of returns can occur. If the request returns `CSR_OK`, a blank string is returned. In the case of return `CSR_ERR` and `CSR_FAIL`, the respective message will be returned.
+Two types of returns can occur. If the request returns `CSR_OK`, a null pointer is returned. In the case of return `CSR_ERR` and `CSR_FAIL`, the respective message will be returned.
 
 #### Example
 
@@ -116,7 +116,30 @@ There is no return.
 ```c
 varDB.debug(0); /* turn off */
 varDB.debug(1); /* turn on */
+```
 
+<!--.........................................................................-->
+
+### free
+
+Releases the allocated memory. Use this method right after the structure becomes unnecessary.
+
+```c
+void free ()
+```
+
+#### Parameters
+
+there are no parameters.
+
+##### Returns
+
+There is no return.
+
+#### Example
+
+```c
+varDB.free()
 ```
 
 <!--.........................................................................-->
@@ -666,6 +689,13 @@ gcc -c libcsrequest.c -l sqlite3
 - added "create" method
 - added "drop" method
 - added "replace" method
+
+#### v1.2.0 (2020-05-21)
+
+- added "free" method
+- improvement of the allocated memory release system
+- changed the return of the "info" method (from "" to NULL)
+- fixed sql display error in terminal
 
 ### Authors
 
