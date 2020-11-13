@@ -6,7 +6,7 @@ The interaction with the database occurs through a structure (type) that points 
 
 ## Handbook
 
-[https://wdonadelli.github.io/libcsrequest/](https://wdonadelli.github.io/libcsrequest/)
+[https://wdonadelli.github.io/libcsrequest/](https://github.com/wdonadelli/libcsrequest/wiki)
 
 ## Source Code
 
